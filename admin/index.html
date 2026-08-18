@@ -6614,6 +6614,33 @@
 			border-radius: 999px;
 		}
 
+		.local-tool-ui {
+			display: inline-flex;
+			align-items: center;
+			gap: 3px;
+			font-size: 11.5px;
+			line-height: 1.5;
+			padding: 2px 8px;
+			border-radius: 999px;
+			background: #f1f5f9;
+			color: #475569;
+		}
+
+		.local-tool-ui-webui {
+			background: #ecfeff;
+			color: #0e7490;
+		}
+
+		.local-tool-ui-gui {
+			background: #fdf4ff;
+			color: #a21caf;
+		}
+
+		.local-tool-ui-cli {
+			background: #fffbeb;
+			color: #b45309;
+		}
+
 		.local-tool-desc {
 			font-size: 13px;
 			line-height: 1.7;
@@ -6707,6 +6734,26 @@
 		html.dark-mode .local-tool-author {
 			color: #a5b4fc;
 			background: rgba(99, 102, 241, .18);
+		}
+
+		html.dark-mode .local-tool-ui {
+			background: rgba(148, 163, 184, .16);
+			color: #cbd5e1;
+		}
+
+		html.dark-mode .local-tool-ui-webui {
+			background: rgba(14, 116, 144, .2);
+			color: #67e8f9;
+		}
+
+		html.dark-mode .local-tool-ui-gui {
+			background: rgba(162, 28, 175, .2);
+			color: #f0abfc;
+		}
+
+		html.dark-mode .local-tool-ui-cli {
+			background: rgba(180, 83, 9, .2);
+			color: #fcd34d;
 		}
 
 		html.dark-mode .local-tool-desc {
@@ -24294,6 +24341,12 @@
 				return;
 			}
 
+			const uiLabels = {
+				webui: { emoji: '🌐', label: '网页界面' },
+				gui: { emoji: '🖥️', label: '图形界面' },
+				cli: { emoji: '⌨️', label: '命令行CLI' }
+			};
+
 			list.innerHTML = projects.map((project, index) => {
 				const name = escapeHtml(String(project.name || '未命名工具'));
 				const author = project.author ? escapeHtml(String(project.author)) : '';
@@ -24302,12 +24355,25 @@
 				const platformBadges = platforms
 					.map(p => `<span class="local-tool-platform">${escapeHtml(String(p))}</span>`)
 					.join('');
+				const uiList = Array.isArray(project.ui) ? project.ui : [];
+				const uiBadges = uiList
+					.filter(u => u !== null && u !== undefined && String(u).trim() !== '')
+					.map(u => {
+						const key = String(u).trim().toLowerCase();
+						const meta = uiLabels[key];
+						if (!meta) {
+							return `<span class="local-tool-ui">${escapeHtml(String(u))}</span>`;
+						}
+						return `<span class="local-tool-ui local-tool-ui-${key}">${meta.emoji} ${meta.label}</span>`;
+					})
+					.join('');
 
 				return `
 					<div class="local-tool-card">
 						<div class="local-tool-head">
 							<span class="local-tool-name">${name}</span>
 							${author ? `<span class="local-tool-author">@${author}</span>` : ''}
+							${uiBadges}
 						</div>
 						<div class="local-tool-desc">${description}</div>
 						${platformBadges ? `<div class="local-tool-platforms">${platformBadges}</div>` : ''}

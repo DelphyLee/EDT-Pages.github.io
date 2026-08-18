@@ -12560,6 +12560,7 @@
 				.network-warning-actions {
 					display: flex;
 					justify-content: flex-end;
+					gap: 12px;
 					padding: 0 24px 24px;
 				}
 
@@ -12587,6 +12588,32 @@
 					background: #fff7e6;
 					color: #6f3d0a;
 					box-shadow: 0 16px 36px rgba(92, 54, 9, 0.32);
+				}
+
+				/* 本地优选（推荐）按钮：绿色渐变实心，突出引导前往 */
+				.network-warning-actions .btn-local-warning {
+					background: linear-gradient(135deg, #10b981 0, #059669 100%);
+					color: #ffffff;
+					border-color: rgba(255, 255, 255, 0.9);
+					box-shadow: 0 12px 28px rgba(6, 95, 70, 0.5), 0 0 0 4px rgba(16, 185, 129, 0.26);
+				}
+
+				.network-warning-modal.is-request-failed .network-warning-actions .btn-local-warning {
+					color: #ffffff;
+				}
+
+				.network-warning-actions .btn-local-warning:hover:not(:disabled) {
+					background: linear-gradient(135deg, #34d399 0, #10b981 100%);
+					color: #ffffff;
+					border-color: #ffffff;
+					box-shadow: 0 16px 36px rgba(6, 95, 70, 0.6), 0 0 0 4px rgba(16, 185, 129, 0.36);
+					transform: translateY(-1px);
+				}
+
+				.network-warning-modal.is-request-failed .network-warning-actions .btn-local-warning:hover:not(:disabled) {
+					background: linear-gradient(135deg, #34d399 0, #10b981 100%);
+					color: #ffffff;
+					box-shadow: 0 16px 36px rgba(6, 95, 70, 0.6), 0 0 0 4px rgba(16, 185, 129, 0.36);
 				}
 
 				@keyframes networkWarningPop {
@@ -13161,6 +13188,7 @@
 						</details>
 					</div>
 					<div class="network-warning-actions">
+						<button class="btn btn-local-warning" id="networkWarningLocalBtn" type="button">本地优选</button>
 						<button class="btn" id="networkWarningConfirmBtn" type="button">确定</button>
 					</div>
 				</div>
@@ -13352,7 +13380,8 @@
 					networkWarningSummary: $("#networkWarningSummary"),
 					networkWarningDetails: $("#networkWarningDetails"),
 					networkWarningJson: $("#networkWarningJson"),
-					networkWarningConfirmBtn: $("#networkWarningConfirmBtn")
+					networkWarningConfirmBtn: $("#networkWarningConfirmBtn"),
+					networkWarningLocalBtn: $("#networkWarningLocalBtn")
 				};
 
 				document.addEventListener("DOMContentLoaded", () => {
@@ -13466,6 +13495,7 @@
 					});
 					els.closeBestCFBtn.addEventListener("click", closeBestCFModule);
 					els.networkWarningConfirmBtn.addEventListener("click", confirmNetworkWarning);
+					els.networkWarningLocalBtn.addEventListener("click", openLocalOptimizeFromWarning);
 					document.querySelectorAll("[data-sort]").forEach((button) => {
 						button.addEventListener("click", () => setResultSort(button.dataset.sort));
 					});
@@ -13612,25 +13642,25 @@
 					const completed = entries.filter(({ info }) => info && info.status === "done");
 					const nonCn = completed.filter(({ info }) => !info.allowed);
 
-					if (nonCn.length) {
-						return {
-							kind: "non-cn",
-							heading: "红牌警告",
-							title: "检测到当前网络出口不是 CN 直连",
-							message: "请确认浏览器当前网络是否经过了 代理、VPN 或 境外网络，\n在线优选仅有 CN 直连网络环境才可以实现！",
-							rows: nonCn,
-							details: completed
-						};
-					}
-
+				if (nonCn.length) {
 					return {
-						kind: "request-failed",
-						heading: "检测失败",
-						title: "优选域名请求失败",
-						message: "优选域名请求失败，自行检查网络环境，确保优选域名可访问。",
-						rows: entries,
+						kind: "non-cn",
+						heading: "红牌警告",
+						title: "检测到当前网络出口不是 CN 直连",
+						message: "请确认浏览器当前网络是否经过了 代理、VPN 或 境外网络，\n在线优选仅有 CN 直连网络环境才可以实现！\n当前网络环境无法进行在线优选，可尝试使用「本地优选」。",
+						rows: nonCn,
 						details: completed
 					};
+				}
+
+				return {
+					kind: "request-failed",
+					heading: "黄牌警告",
+					title: "优选域名请求失败",
+					message: "当前网络环境无法进行在线优选，但可尝试使用「本地优选」。\n请自行检查网络环境，确保优选域名可访问。",
+					rows: entries,
+					details: completed
+				};
 				}
 
 				function renderNetworkWarning(context) {
@@ -13698,6 +13728,29 @@
 					}
 
 					window.location.reload();
+				}
+
+				function openLocalOptimizeFromWarning() {
+					// 关闭当前警告弹窗
+					els.networkWarningOverlay.classList.remove("is-visible");
+
+					if (window.parent && window.parent !== window) {
+						try {
+							if (typeof window.parent.switchToLocalOptimizeFromOnline === "function") {
+								window.parent.switchToLocalOptimizeFromOnline();
+								return;
+							}
+						} catch (error) {
+							// Fall back to postMessage below when direct parent access is unavailable.
+						}
+
+						try {
+							window.parent.postMessage({ type: "bestcf-open-local-optimize" }, "*");
+							return;
+						} catch (error) {
+							// Ignore — nothing else we can do from inside the frame.
+						}
+					}
 				}
 
 				async function detectStack(family, host) {
@@ -24323,6 +24376,12 @@
 			return true;
 		}
 
+		// 从在线优选警告弹窗切换到本地优选（关闭在线全屏并打开本地优选工具目录）
+		function switchToLocalOptimizeFromOnline() {
+			closeOnlineOptimizeModal();
+			openLocalOptimizeModal();
+		}
+
 		window.addEventListener('message', (event) => {
 			const frame = document.getElementById('onlineOptimizeFrame');
 			if (!frame || event.source !== frame.contentWindow) return;
@@ -24334,6 +24393,8 @@
 				closeOnlineOptimizeModal();
 			} else if (data.type === 'bestcf-force-reload') {
 				window.location.reload();
+			} else if (data.type === 'bestcf-open-local-optimize') {
+				switchToLocalOptimizeFromOnline();
 			}
 		});
 

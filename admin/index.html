@@ -6556,6 +6556,27 @@
 			overflow-y: auto;
 			text-align: left;
 			padding: 28px 26px 26px;
+			scrollbar-width: thin;
+			scrollbar-color: #818cf8 transparent;
+		}
+
+		.local-optimize-modal::-webkit-scrollbar {
+			width: 8px;
+		}
+
+		.local-optimize-modal::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		.local-optimize-modal::-webkit-scrollbar-thumb {
+			background: linear-gradient(180deg, #a5b4fc, #6366f1);
+			border-radius: 999px;
+			border: 2px solid transparent;
+			background-clip: padding-box;
+		}
+
+		.local-optimize-modal::-webkit-scrollbar-thumb:hover {
+			background: linear-gradient(180deg, #818cf8, #4f46e5);
 		}
 
 		.local-optimize-title {
@@ -6577,6 +6598,67 @@
 			gap: 14px;
 		}
 
+		.local-optimize-footer {
+			margin-top: 20px;
+			text-align: center;
+			font-size: 12px;
+			color: #94a3b8;
+			letter-spacing: .5px;
+		}
+
+		.local-ui-filter {
+			display: flex;
+			flex-wrap: nowrap;
+			gap: 8px;
+			margin-bottom: 14px;
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
+			scrollbar-width: none;
+			padding-bottom: 2px;
+			scroll-snap-type: x proximity;
+		}
+
+		.local-ui-filter::-webkit-scrollbar {
+			display: none;
+		}
+
+		.local-ui-filter-btn {
+			flex-shrink: 0;
+			padding: 4px 11px;
+			border-radius: 999px;
+			border: 1px solid transparent;
+			background: #f1f5f9;
+			color: #475569;
+			font-size: 12px;
+			font-weight: 500;
+			white-space: nowrap;
+			cursor: pointer;
+			scroll-snap-align: start;
+			transition: background .18s ease-out, color .18s ease-out, border-color .18s ease-out;
+		}
+
+		.local-ui-filter-btn:hover {
+			background: #e2e8f0;
+			color: #0f172a;
+		}
+
+		.local-ui-filter-btn.is-active {
+			background: #4f46e5;
+			color: #fff;
+			border-color: #4f46e5;
+		}
+
+		@keyframes localToolFadeIn {
+			from {
+				opacity: 0;
+				transform: translateY(6px);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
 		.local-tool-card {
 			display: flex;
 			flex-direction: column;
@@ -6586,6 +6668,13 @@
 			border-radius: 14px;
 			background: #f8fafc;
 			transition: border-color .18s ease, box-shadow .18s ease;
+			animation: localToolFadeIn .3s ease-out both;
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			.local-tool-card {
+				animation: none !important;
+			}
 		}
 
 		.local-tool-card:hover {
@@ -6620,7 +6709,7 @@
 			gap: 3px;
 			font-size: 11.5px;
 			line-height: 1.5;
-			padding: 2px 8px;
+			padding: 3px 10px;
 			border-radius: 999px;
 			background: #f1f5f9;
 			color: #475569;
@@ -6720,6 +6809,39 @@
 
 		html.dark-mode .local-optimize-subtitle {
 			color: #94a3b8;
+		}
+
+		html.dark-mode .local-optimize-modal {
+			scrollbar-color: #818cf8 rgba(148, 163, 184, .12);
+		}
+
+		html.dark-mode .local-optimize-modal::-webkit-scrollbar-thumb {
+			background: linear-gradient(180deg, #a5b4fc, #818cf8);
+		}
+
+		html.dark-mode .local-optimize-modal::-webkit-scrollbar-thumb:hover {
+			background: linear-gradient(180deg, #c7d2fe, #a5b4fc);
+		}
+
+		html.dark-mode .local-optimize-footer {
+			color: #64748b;
+		}
+
+		html.dark-mode .local-ui-filter-btn {
+			background: rgba(148, 163, 184, .14);
+			color: #cbd5e1;
+			border-color: rgba(148, 163, 184, .22);
+		}
+
+		html.dark-mode .local-ui-filter-btn:hover {
+			background: rgba(148, 163, 184, .24);
+			color: #f1f5f9;
+		}
+
+		html.dark-mode .local-ui-filter-btn.is-active {
+			background: #4f46e5;
+			color: #fff;
+			border-color: #4f46e5;
 		}
 
 		html.dark-mode .local-tool-card {
@@ -11145,7 +11267,14 @@
 			<button type="button" class="modal-close" onclick="closeLocalOptimizeModal()" aria-label="关闭">×</button>
 			<h2 class="local-optimize-title">💻 本地优选工具</h2>
 			<p class="local-optimize-subtitle">选择一款工具，点击「前往 GitHub」即可在新窗口查看与下载</p>
+			<div class="local-ui-filter" id="localUiFilter">
+				<button type="button" class="local-ui-filter-btn is-active" data-ui="all" onclick="setLocalUiFilter('all')">全部</button>
+				<button type="button" class="local-ui-filter-btn" data-ui="webui" onclick="setLocalUiFilter('webui')">🌐 网页界面</button>
+				<button type="button" class="local-ui-filter-btn" data-ui="gui" onclick="setLocalUiFilter('gui')">🖥️ 图形界面</button>
+				<button type="button" class="local-ui-filter-btn" data-ui="cli" onclick="setLocalUiFilter('cli')">⌨️ 命令行CLI</button>
+			</div>
 			<div id="localOptimizeToolList" class="local-optimize-tools"><!-- 动态渲染 --></div>
+			<div class="local-optimize-footer">欢迎优选项目投稿</div>
 		</div>
 	</div>
 
@@ -24274,6 +24403,7 @@
 
 		const CF_TOOLS_RAW_URL = 'https://raw.githubusercontent.com/cmliu/cmliu/refs/heads/main/json/best-cf-tools.json';
 		let localOptimizeProjects = [];
+		let localUiFilter = 'all';
 
 		// 打开"开始优选"方式选择弹窗
 		function openOptimizeStartModal() {
@@ -24336,6 +24466,12 @@
 		function renderLocalOptimizeTools(list, projects) {
 			localOptimizeProjects = projects;
 
+			// 同步类型筛选按钮高亮态，保证弹窗重开时高亮一致
+			const filterButtons = document.querySelectorAll('#localUiFilter .local-ui-filter-btn');
+			filterButtons.forEach(btn => {
+				btn.classList.toggle('is-active', btn.dataset.ui === localUiFilter);
+			});
+
 			if (!projects.length) {
 				list.innerHTML = '<div class="local-tools-error">😕 暂无可用的本地优选工具</div>';
 				return;
@@ -24347,7 +24483,24 @@
 				cli: { emoji: '⌨️', label: '命令行CLI' }
 			};
 
-			list.innerHTML = projects.map((project, index) => {
+			// 按类型筛选，保留原始索引（openLocalToolGitHub 依赖 localOptimizeProjects 索引）
+			const filtered = projects
+				.map((project, index) => ({ project, index }))
+				.filter(({ project }) => {
+					if (localUiFilter === 'all') return true;
+					const uiValues = Array.isArray(project.ui)
+						? project.ui.map(u => String(u).trim().toLowerCase())
+						: [];
+					return uiValues.includes(localUiFilter);
+				});
+
+			if (!filtered.length) {
+				const currentLabel = (uiLabels[localUiFilter] && uiLabels[localUiFilter].label) || '该';
+				list.innerHTML = `<div class="local-tools-error">😕 没有「${currentLabel}」类型的工具</div>`;
+				return;
+			}
+
+			list.innerHTML = filtered.map(({ project, index }, i) => {
 				const name = escapeHtml(String(project.name || '未命名工具'));
 				const author = project.author ? escapeHtml(String(project.author)) : '';
 				const description = project.description ? escapeHtml(String(project.description)) : '';
@@ -24369,14 +24522,13 @@
 					.join('');
 
 				return `
-					<div class="local-tool-card">
+					<div class="local-tool-card" style="animation-delay: ${Math.min(i, 8) * 40}ms">
 						<div class="local-tool-head">
 							<span class="local-tool-name">${name}</span>
 							${author ? `<span class="local-tool-author">@${author}</span>` : ''}
-							${uiBadges}
 						</div>
 						<div class="local-tool-desc">${description}</div>
-						${platformBadges ? `<div class="local-tool-platforms">${platformBadges}</div>` : ''}
+						${(uiBadges || platformBadges) ? `<div class="local-tool-platforms">${uiBadges}${platformBadges}</div>` : ''}
 						<div class="local-tool-actions">
 							<button type="button" class="local-tool-github" onclick="openLocalToolGitHub(${index})">
 								🔗 前往 GitHub
@@ -24384,6 +24536,20 @@
 						</div>
 					</div>`;
 			}).join('');
+		}
+
+		// 设置本地优选工具类型筛选（白名单：all/webui/gui/cli）
+		function setLocalUiFilter(type) {
+			if (type !== 'all' && type !== 'webui' && type !== 'gui' && type !== 'cli') return;
+			localUiFilter = type;
+
+			const filterButtons = document.querySelectorAll('#localUiFilter .local-ui-filter-btn');
+			filterButtons.forEach(btn => {
+				btn.classList.toggle('is-active', btn.dataset.ui === localUiFilter);
+			});
+
+			const list = document.getElementById('localOptimizeToolList');
+			if (list) renderLocalOptimizeTools(list, localOptimizeProjects);
 		}
 
 		// 关闭本地优选工具目录弹窗

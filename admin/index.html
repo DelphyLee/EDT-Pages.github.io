@@ -22470,10 +22470,12 @@
 				const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
 
 				let response;
+				let fromPrimary = false;
 				try {
 					response = await fetch(`https://api.ipapi.is/?q=${cleanIp}`, { signal: controller.signal });
 					clearTimeout(timeoutId);
 					if (!response.ok) throw new Error('Primary API failed');
+					fromPrimary = true;
 				} catch (e) {
 					console.warn('Primary IP API failed, trying fallback...', e);
 					response = await fetch(`https://api.090227.xyz/api/ipapi?ip=${cleanIp}`);
@@ -22482,8 +22484,11 @@
 
 				const data = await response.json();
 
+				// 主 API(ipapi.is) 返回新版扁平结构，归一化为旧版嵌套结构供弹窗展示；fallback 数据保持原样透传
+				const modalData = fromPrimary ? normalizeIpapiData(data) : data;
+
 				// 显示详情弹窗
-				showIpDetailModal(data);
+				showIpDetailModal(modalData);
 			} catch (error) {
 				showToast('❌ 查询IP详细信息失败');
 				console.error('IP查询错误:', error);
@@ -25684,7 +25689,7 @@
 			const apis = [
 				{
 					url: `https://api.ipapi.is`,
-					parse: d => ({ ip: d.ip, loc: `${d.location?.country_code || '未知'} AS${d.asn?.asn || ''} ${d.asn?.org || ''}`.trim() })
+					parse: d => ({ ip: d.ip, loc: `${d.cc || '未知'} AS${d.asn_num || ''} ${d.asn_org || ''}`.trim() })
 				},
 				{
 					url: `https://api.cmliussss.net/api/ipinfo`,
@@ -26389,6 +26394,45 @@
 			tooltip.style.position = 'fixed';
 			tooltip.style.left = left + 'px';
 			tooltip.style.top = top + 'px';
+		}
+
+		// 将 ipapi.is 新版扁平响应归一化为旧版嵌套结构（幂等：已含 location 子对象的旧格式/fallback 数据原样返回）
+		function normalizeIpapiData(data) {
+			if (!data || typeof data !== 'object') return data || {};
+
+			// 幂等保护：已有 location 子对象说明是旧格式或 fallback 数据，无需二次处理
+			if (data.location && typeof data.location === 'object') return data;
+
+			// 复制原对象并保留扁平字段（cc/lat/lon/company_name/asn_num/asn_org 等仍可访问）
+			const normalized = Object.assign({}, data);
+
+			// 构造 location 子对象（新版缺少 country/state/city/timezone，缺省为 undefined）
+			normalized.location = {
+				country: data.country,
+				country_code: data.cc,
+				state: data.state,
+				city: data.city,
+				latitude: data.lat,
+				longitude: data.lon,
+				timezone: data.timezone
+			};
+
+			// 构造 company 子对象（新版仅有 company_name，无 type/abuser_score，缺省为 undefined）
+			normalized.company = {
+				name: data.company_name,
+				type: data.company_type,
+				abuser_score: data.company_abuser_score
+			};
+
+			// 构造 asn 子对象（新版仅有 asn_num/asn_org，无 type/abuser_score，缺省为 undefined）
+			normalized.asn = {
+				asn: data.asn_num,
+				org: data.asn_org,
+				type: data.asn_type,
+				abuser_score: data.asn_abuser_score
+			};
+
+			return normalized;
 		}
 
 		// 显示 IP 详情弹窗

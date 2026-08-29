@@ -17289,8 +17289,16 @@
 
 			closeProxyIPListPicker();
 
-			if (typeof showToast === 'function') {
-				showToast('✅ 已过滤 ' + selectedItems.length + ' 个 PROXYIP 作为反代出口(池中其他 IP 保留)', 'success');
+			// ✅ 立即保存到服务器(不依赖主界面"保存"按钮)
+			if (typeof saveConfigToServer === 'function') {
+				saveConfigToServer('proxy');
+				if (typeof showToast === 'function') {
+					showToast('✅ 已过滤 ' + selectedItems.length + ' 个 PROXYIP 作为反代出口(池中其他 IP 保留),已立即保存', 'success');
+				}
+			} else {
+				if (typeof showToast === 'function') {
+					showToast('⚠️ 已过滤,但请手动点主界面"保存"', 'warning');
+				}
 			}
 		}
 		// ========== PROXYIP 列表选择器功能结束 ==========

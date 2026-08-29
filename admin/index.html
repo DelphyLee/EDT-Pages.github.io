@@ -10685,6 +10685,9 @@
 									<label for="autoProxy" class="checkbox-label"
 										title="启用自动获取: 使用默认内置的PROXYIP">启用自动获取</label>
 								</div>
+								<button type="button" class="btn btn-secondary" onclick="openProxyIPListPicker()"
+									style="margin-top: 8px;"
+									title="从当前 PROXYIP 池中可视化勾选/筛选 IP">📋 列表选择</button>
 							</div>
 						</div>
 					</div>
@@ -17116,6 +17119,36 @@
 		</div>
 	</div>
 
+	<!-- PROXYIP 列表选择器弹窗 -->
+	<div class="modal-overlay" id="proxyIPListPickerModal" style="display: none;" onclick="if(event.target===event.currentTarget) closeProxyIPListPicker()">
+		<div class="modal" onclick="event.stopPropagation()">
+			<button type="button" class="modal-close" onclick="closeProxyIPListPicker()" style="cursor: pointer;">×</button>
+			<h2 class="section-title" style="margin-bottom: 10px; text-align: center;">📋 从 PROXYIP 池中选择</h2>
+			<p style="text-align: center; color: #666; font-size: 13px; margin-bottom: 16px;">
+				从当前 PROXYIP 输入框的内容中可视化勾选想要的 IP
+			</p>
+			<div style="background: #f9fafb; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 13px; color: #4b5563;">
+				共识别 <span id="proxyIPListTotal" style="font-weight: 600; color: #2563eb;">0</span> 个 IP,已选 <span id="proxyIPListSelected" style="font-weight: 600; color: #059669;">0</span> 个
+			</div>
+			<div id="proxyIPListContainer" style="max-height: 400px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 4px;">
+				<!-- 动态生成 checkbox 列表 -->
+			</div>
+			<div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; padding: 0 4px;">
+				<label style="cursor: pointer; font-size: 13px;">
+					<input type="checkbox" id="proxyIPListSelectAll" onchange="toggleProxyIPListSelectAll()">
+					全选/全不选
+				</label>
+				<button type="button" onclick="invertProxyIPListSelection()" style="background: none; border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 12px; font-size: 12px; cursor: pointer; color: #4b5563;" title="反选">
+					🔄 反选
+				</button>
+			</div>
+			<div class="btn-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px;">
+				<button type="button" class="btn btn-primary" onclick="applyProxyIPListSelection()">✅ 应用选择</button>
+				<button type="button" class="btn btn-secondary" onclick="closeProxyIPListPicker()">取消</button>
+			</div>
+		</div>
+	</div>
+
 	<script data-cfasync="false">
 		let currentConfig = {};
 		let originalConfig = {};
@@ -17133,6 +17166,106 @@
 		const TURN_SSTP_PROXY_MIN_VERSION = 20260504172138;
 		const CHAIN_PROXY_MIN_VERSION = 20260506175102;
 		const SKIP_VERIFY_WARNING_BYPASS_MIN_VERSION = 20260601154939;
+
+		// ========== PROXYIP 列表选择器功能 ==========
+		function escapeHtml(text) {
+			const div = document.createElement('div');
+			div.textContent = text;
+			return div.innerHTML;
+		}
+
+		function openProxyIPListPicker() {
+			const input = document.getElementById('proxyIP');
+			if (!input) return;
+
+			const inputValue = (input.value || '').trim();
+
+			if (!inputValue) {
+				if (typeof showToast === 'function') showToast('PROXYIP 输入框为空,请先填入 IP', 'warning');
+				return;
+			}
+
+			// 解析逗号/换行分隔的 IP(同时支持域名)
+			const items = inputValue.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+
+			if (items.length === 0) {
+				if (typeof showToast === 'function') showToast('未识别到任何 IP/域名', 'warning');
+				return;
+			}
+
+			// 生成 checkbox 列表
+			const container = document.getElementById('proxyIPListContainer');
+			container.innerHTML = items.map((item, idx) => {
+				return '<label style="display: flex; align-items: center; padding: 10px 8px; border-bottom: 1px solid #f3f4f6; cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background=\'#f9fafb\'" onmouseout="this.style.background=\'transparent\'">'
+					+ '<input type="checkbox" class="proxyip-list-checkbox" value="' + escapeHtml(item) + '" data-idx="' + idx + '" checked onchange="updateProxyIPListCount()" style="cursor: pointer;">'
+					+ '<span style="margin-left: 10px; font-family: \'Fira Code\', \'Consolas\', monospace; font-size: 13px; flex: 1; word-break: break-all;">'
+					+ escapeHtml(item)
+					+ '</span>'
+					+ '<span style="color: #9ca3af; font-size: 11px; margin-left: 8px;">#' + (idx + 1) + '</span>'
+					+ '</label>';
+			}).join('');
+
+			document.getElementById('proxyIPListTotal').textContent = items.length;
+			updateProxyIPListCount();
+
+			const modal = document.getElementById('proxyIPListPickerModal');
+			if (modal) modal.style.display = 'flex';
+		}
+
+		function closeProxyIPListPicker() {
+			const modal = document.getElementById('proxyIPListPickerModal');
+			if (modal) modal.style.display = 'none';
+		}
+
+		function toggleProxyIPListSelectAll() {
+			const selectAll = document.getElementById('proxyIPListSelectAll');
+			const checkboxes = document.querySelectorAll('.proxyip-list-checkbox');
+			checkboxes.forEach(cb => cb.checked = selectAll.checked);
+			updateProxyIPListCount();
+		}
+
+		function invertProxyIPListSelection() {
+			const checkboxes = document.querySelectorAll('.proxyip-list-checkbox');
+			checkboxes.forEach(cb => cb.checked = !cb.checked);
+			updateProxyIPListCount();
+		}
+
+		function updateProxyIPListCount() {
+			const checkboxes = document.querySelectorAll('.proxyip-list-checkbox');
+			const checked = document.querySelectorAll('.proxyip-list-checkbox:checked');
+
+			document.getElementById('proxyIPListSelected').textContent = checked.length;
+
+			const selectAll = document.getElementById('proxyIPListSelectAll');
+			if (selectAll) {
+				selectAll.checked = checkboxes.length > 0 && checkboxes.length === checked.length;
+				selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
+			}
+		}
+
+		function applyProxyIPListSelection() {
+			const checkboxes = document.querySelectorAll('.proxyip-list-checkbox:checked');
+			const selectedItems = Array.from(checkboxes).map(cb => cb.value);
+
+			if (selectedItems.length === 0) {
+				if (typeof showToast === 'function') showToast('请至少选择一个 IP', 'warning');
+				return;
+			}
+
+			const input = document.getElementById('proxyIP');
+			if (!input) return;
+
+			input.value = selectedItems.join(',');
+			input.dispatchEvent(new Event('change', { bubbles: true }));
+			markModified('proxy');
+
+			closeProxyIPListPicker();
+
+			if (typeof showToast === 'function') {
+				showToast('✅ 已应用 ' + selectedItems.length + ' 个 PROXYIP', 'success');
+			}
+		}
+		// ========== PROXYIP 列表选择器功能结束 ==========
 		let cachedWorkerVersionRawText = '';
 		let cachedLatestOnlineVersion = 0;
 		let cachedCurrentVersionNumber = 0;

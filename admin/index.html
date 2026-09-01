@@ -9486,8 +9486,12 @@
 		}
 		.exit-rule-card .rule-grid {
 			display: grid;
-			grid-template-columns: minmax(0, 1fr) minmax(140px, 0.8fr) minmax(0, 1.2fr);
+			grid-template-columns: minmax(0, 1fr) minmax(180px, 0.9fr);
 			gap: 12px;
+		}
+		.exit-rule-proxyip-wrap,
+		.exit-rule-chain-wrap {
+			grid-column: 1 / -1;
 		}
 		.module #exitRuleSection .exit-rule-card textarea.exit-rule-match {
 			min-height: 140px !important;
@@ -11073,7 +11077,7 @@
 
 					<div class="form-group proxyip-block" id="exitRuleSection">
 						<label>出口规则（按站点选落地方式）</label>
-						<p class="exit-rule-hint">Cloudflare 的 PROXYIP 只能给<strong>挂在 CF 上的站</strong>当落地。Gemini / Google 的 TLS 不能丢到 CF IP 上，否则浏览器会报 ERR_SSL_VERSION_OR_CIPHER_MISMATCH。Google 请选「直连」。若要固定亚特兰大机房，把节点<strong>服务器地址</strong>设为该 CF IP，Host/SNI 填 Pages 域名。</p>
+						<p class="exit-rule-hint">按域名覆盖落地，其它站不受影响。Google / Gemini 不要填 CF PROXYIP。SOCKS5 或明文 HTTP CONNECT 可给单独域名换出口，对 Worker CPU 接近直连；HTTPS 链更费，请慎用。</p>
 						<div id="exitRuleList"></div>
 						<button type="button" class="btn btn-secondary" onclick="addExitRuleRow()">添加规则</button>
 					</div>
@@ -17782,6 +17786,12 @@
 			const s = String(raw || '').trim().toLowerCase();
 			if (s === '直连' || s === 'direct' || s === 'cf') return '直连';
 			if (s === '反代' || s === 'proxyip' || s === 'proxy' || s === 'proxy-ip') return '反代';
+			if (s === 'socks5' || s === 's5' || s === 'sock') return 'socks5';
+			if (s === 'http') return 'http';
+			if (s === 'https') return 'https';
+			const chain = String(rule?.账号 || '').trim();
+			const proto = /^(socks5|http|https):\/\//i.exec(chain);
+			if (proto) return proto[1].toLowerCase() === 'socks5' ? 'socks5' : proto[1].toLowerCase();
 			const blob = `${rule?.名称 || ''} ${(Array.isArray(rule?.匹配) ? rule.匹配 : []).join(' ')}`.toLowerCase();
 			if (/gemini\.google\.com|aistudio\.google\.com|generativelanguage\.googleapis\.com|clients6\.google\.com/.test(blob)) return '直连';
 			return '反代';
@@ -17793,18 +17803,26 @@
 				名称: String(item?.名称 || item?.name || '').trim(),
 				方式: normalizeExitRuleMode(item?.方式 || item?.mode, item),
 				匹配: Array.isArray(item?.匹配) ? item.匹配 : String(item?.匹配 || '').split(/[,;\s]+/).filter(Boolean),
-				proxyip: String(item?.proxyip || item?.PROXYIP || '').trim()
-			})).filter(item => item.匹配.length || item.名称 || item.proxyip);
+				proxyip: String(item?.proxyip || item?.PROXYIP || '').trim(),
+				账号: String(item?.账号 || item?.proxy || item?.chain || '').trim()
+			})).filter(item => item.匹配.length || item.名称 || item.proxyip || item.账号);
 		}
 
 		function collectExitRulesFromForm() {
 			return Array.from(document.querySelectorAll('.exit-rule-card')).map(card => {
 				const 名称 = card.querySelector('.exit-rule-name')?.value.trim() || '';
-				const 方式 = card.querySelector('.exit-rule-mode')?.value === '直连' ? '直连' : '反代';
+				const 方式 = normalizeExitRuleMode(card.querySelector('.exit-rule-mode')?.value, null);
 				const proxyip = card.querySelector('.exit-rule-proxyip')?.value.trim() || '';
+				const 账号 = card.querySelector('.exit-rule-chain')?.value.trim() || '';
 				const 匹配 = String(card.querySelector('.exit-rule-match')?.value || '').split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
-				return { 名称: 名称 || proxyip || '未命名', 方式, 匹配, proxyip };
-			}).filter(rule => rule.匹配.length && (rule.方式 === '直连' || rule.proxyip));
+				return { 名称: 名称 || proxyip || 账号 || '未命名', 方式, 匹配, proxyip, 账号 };
+			}).filter(rule => {
+				if (!rule.匹配.length) return false;
+				if (rule.方式 === '直连') return true;
+				if (rule.方式 === '反代') return !!rule.proxyip;
+				if (rule.方式 === 'socks5' || rule.方式 === 'http' || rule.方式 === 'https') return !!rule.账号;
+				return false;
+			});
 		}
 
 		function renderExitRuleList(rules) {
@@ -17818,7 +17836,10 @@
 		function renderExitRuleCard(rule, idx) {
 			const poolOptions = getProxyIPPoolItems().map(ip => `<option value="${escapeHtml(ip)}"></option>`).join('');
 			const mode = normalizeExitRuleMode(rule.方式, rule);
-			const proxyHidden = mode === '直连' ? ' style="display:none"' : '';
+			const proxyHidden = mode === '反代' ? '' : ' style="display:none"';
+			const chainHidden = (mode === 'socks5' || mode === 'http' || mode === 'https') ? '' : ' style="display:none"';
+			const probeHidden = mode === '直连' ? ' style="display:none"' : '';
+			const chainPlaceholder = mode === 'http' ? 'user:pass@host:8080 或 host:8080' : 'user:pass@host:1080 或 host:1080';
 			return `<div class="exit-rule-card" data-idx="${idx}">
 				<div class="rule-grid">
 					<div>
@@ -17828,19 +17849,25 @@
 					<div>
 						<label>落地方式</label>
 						<select class="exit-rule-mode" onchange="onExitRuleModeChange(this)">
-							<option value="直连"${mode === '直连' ? ' selected' : ''}>直连（Google / Gemini）</option>
+							<option value="直连"${mode === '直连' ? ' selected' : ''}>直连</option>
 							<option value="反代"${mode === '反代' ? ' selected' : ''}>反代 PROXYIP（仅 CF 站点）</option>
+							<option value="socks5"${mode === 'socks5' ? ' selected' : ''}>SOCKS5</option>
+							<option value="http"${mode === 'http' ? ' selected' : ''}>HTTP CONNECT</option>
 						</select>
 					</div>
 					<div class="exit-rule-proxyip-wrap"${proxyHidden}>
 						<label>固定 PROXYIP</label>
 						<input type="text" class="exit-rule-proxyip" list="exitRuleProxyIPDatalist" value="${escapeHtml(rule.proxyip || '')}" oninput="markModified('proxy')" placeholder="仅 CF 站点可填">
 					</div>
+					<div class="exit-rule-chain-wrap"${chainHidden}>
+						<label>代理地址</label>
+						<input type="text" class="exit-rule-chain" value="${escapeHtml(rule.账号 || '')}" oninput="markModified('proxy')" placeholder="${escapeHtml(chainPlaceholder)}">
+					</div>
 				</div>
 				<label style="display:block;margin-top:8px;">匹配域名（逗号或换行，支持 *）</label>
 				<textarea class="exit-rule-match" oninput="markModified('proxy')">${escapeHtml((rule.匹配 || []).join('\n'))}</textarea>
 				<div style="margin-top:8px;display:flex;gap:8px;">
-					<button type="button" class="btn btn-secondary exit-rule-probe-btn"${mode === '直连' ? ' style="display:none"' : ''} onclick="probeExitRuleCard(this)">检测此 IP</button>
+					<button type="button" class="btn btn-secondary exit-rule-probe-btn"${probeHidden} onclick="probeExitRuleCard(this)">检测</button>
 					<button type="button" class="btn btn-secondary" onclick="removeExitRuleCard(this)">删除规则</button>
 				</div>
 				<div class="exit-rule-probe" style="margin-top:6px;font-size:12px;"></div>
@@ -17851,18 +17878,22 @@
 		function onExitRuleModeChange(sel) {
 			const card = sel.closest('.exit-rule-card');
 			if (!card) return;
-			const direct = sel.value === '直连';
-			const wrap = card.querySelector('.exit-rule-proxyip-wrap');
+			const mode = sel.value;
+			const proxyWrap = card.querySelector('.exit-rule-proxyip-wrap');
+			const chainWrap = card.querySelector('.exit-rule-chain-wrap');
 			const probeBtn = card.querySelector('.exit-rule-probe-btn');
-			if (wrap) wrap.style.display = direct ? 'none' : '';
-			if (probeBtn) probeBtn.style.display = direct ? 'none' : '';
+			const chainInput = card.querySelector('.exit-rule-chain');
+			if (proxyWrap) proxyWrap.style.display = mode === '反代' ? '' : 'none';
+			if (chainWrap) chainWrap.style.display = (mode === 'socks5' || mode === 'http') ? '' : 'none';
+			if (probeBtn) probeBtn.style.display = mode === '直连' ? 'none' : '';
+			if (chainInput) chainInput.placeholder = mode === 'http' ? 'user:pass@host:8080 或 host:8080' : 'user:pass@host:1080 或 host:1080';
 			markModified('proxy');
 		}
 
 		function addExitRuleRow() {
 			const box = document.getElementById('exitRuleList');
 			if (!box) return;
-			box.insertAdjacentHTML('beforeend', renderExitRuleCard({ 名称: '', 方式: '反代', 匹配: [], proxyip: '' }, box.children.length));
+			box.insertAdjacentHTML('beforeend', renderExitRuleCard({ 名称: '', 方式: 'socks5', 匹配: [], proxyip: '', 账号: '' }, box.children.length));
 			markModified('proxy');
 		}
 
@@ -17873,15 +17904,26 @@
 
 		async function probeExitRuleCard(btn) {
 			const card = btn.closest('.exit-rule-card');
-			const ip = card.querySelector('.exit-rule-proxyip')?.value.trim();
+			const mode = card.querySelector('.exit-rule-mode')?.value || '反代';
 			const status = card.querySelector('.exit-rule-probe');
-			if (!ip) {
-				showToast('请先填写固定 PROXYIP', 'warning');
-				return null;
-			}
+			let result;
 			if (status) status.textContent = '检测中...';
 			try {
-				const result = await probeProxyIPOnWorker(ip);
+				if (mode === 'socks5' || mode === 'http' || mode === 'https') {
+					const addr = card.querySelector('.exit-rule-chain')?.value.trim();
+					if (!addr) {
+						showToast('请先填写代理地址', 'warning');
+						return null;
+					}
+					result = await probeChainOnWorker(mode, addr);
+				} else {
+					const ip = card.querySelector('.exit-rule-proxyip')?.value.trim();
+					if (!ip) {
+						showToast('请先填写固定 PROXYIP', 'warning');
+						return null;
+					}
+					result = await probeProxyIPOnWorker(ip);
+				}
 				if (status) {
 					status.className = 'exit-rule-probe ' + (result.success ? 'proxyip-probe-ok' : 'proxyip-probe-fail');
 					status.textContent = result.success
@@ -17896,6 +17938,12 @@
 				}
 				return { success: false, error: err.message || String(err) };
 			}
+		}
+
+		async function probeChainOnWorker(protocol, addr) {
+			const response = await fetch('/admin/check?' + encodeURIComponent(protocol) + '=' + encodeURIComponent(addr) + '&_t=' + Date.now(), { cache: 'no-store' });
+			if (!response.ok) throw new Error('HTTP ' + response.status);
+			return response.json();
 		}
 
 		function fillScanProxyIPList(htmlRows, placeholder) {
@@ -21562,10 +21610,15 @@
 			const exitRules = collectExitRulesFromForm();
 			for (const rule of exitRules) {
 				if (rule.方式 === '直连') continue;
-				showToast(`正在检测出口「${rule.名称 || rule.proxyip}」...`, 'info');
-				const result = await probeProxyIPOnWorker(rule.proxyip);
+				showToast(`正在检测出口「${rule.名称 || rule.proxyip || rule.账号}」...`, 'info');
+				let result;
+				if (rule.方式 === 'socks5' || rule.方式 === 'http' || rule.方式 === 'https') {
+					result = await probeChainOnWorker(rule.方式, rule.账号);
+				} else {
+					result = await probeProxyIPOnWorker(rule.proxyip);
+				}
 				if (!result?.success) {
-					showToast(`出口规则「${rule.名称 || rule.proxyip}」不通，未保存：${result?.error || '探活失败'}`, 'error');
+					showToast(`出口规则「${rule.名称 || rule.proxyip || rule.账号}」不通，未保存：${result?.error || '探活失败'}`, 'error');
 					return;
 				}
 			}

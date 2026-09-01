@@ -9249,20 +9249,43 @@
 			overflow: auto;
 		}
 
+		.module .form-group.proxyip-block,
+		#proxyIPSection.form-group,
+		#exitRuleSection.form-group {
+			display: block;
+			grid-template-columns: none;
+			align-items: stretch;
+		}
+		.module .form-group.proxyip-block > label,
+		#exitRuleSection > label {
+			margin-bottom: 8px;
+		}
+		.proxyip-stack {
+			display: flex;
+			flex-direction: column;
+			align-items: stretch;
+			gap: 10px;
+			width: 100%;
+			min-width: 0;
+		}
 		.proxyip-add-row {
 			display: flex;
 			gap: 8px;
-			margin-top: 8px;
+			width: 100%;
 		}
 		.proxyip-add-row input {
 			flex: 1;
 			min-width: 0;
 		}
+		.proxyip-add-row .btn {
+			flex: 0 0 auto;
+			white-space: nowrap;
+		}
 		.proxyip-pool-toolbar {
 			display: flex;
 			align-items: center;
 			gap: 10px;
-			margin-top: 10px;
+			width: 100%;
 		}
 		.proxyip-pool-toolbar input {
 			flex: 1;
@@ -9278,7 +9301,7 @@
 		.proxyip-pool-box,
 		.proxyip-scan-list,
 		.exit-rule-box {
-			margin-top: 8px;
+			width: 100%;
 			min-height: 300px;
 			max-height: 300px;
 			overflow-y: auto;
@@ -9288,6 +9311,7 @@
 			border-radius: 12px;
 			background: #ffffff;
 			scrollbar-width: thin;
+			box-sizing: border-box;
 		}
 		.proxyip-scan-list {
 			min-height: 240px;
@@ -9303,8 +9327,8 @@
 		.proxyip-scan-row {
 			display: flex;
 			align-items: center;
-			gap: 8px;
-			padding: 8px 12px;
+			gap: 10px;
+			padding: 10px 12px;
 			border-bottom: 1px solid #f3f4f6;
 			font-family: 'Fira Code', Consolas, monospace;
 			font-size: 13px;
@@ -9313,39 +9337,64 @@
 		.proxyip-scan-row:nth-child(even) {
 			background: rgba(31, 41, 55, 0.05);
 		}
+		html.dark-mode .proxyip-pool-row,
+		html.dark-mode .proxyip-scan-row {
+			border-bottom-color: #1f2937;
+		}
 		.proxyip-scan-row.is-success { cursor: pointer; }
 		.proxyip-scan-row.is-success:hover { background: #eff6ff; }
+		html.dark-mode .proxyip-scan-row.is-success:hover { background: #1e3a5f; }
 		.proxyip-scan-row.is-selected { outline: 2px solid #2563eb; }
 		.proxyip-scan-row.is-disabled { opacity: 0.55; cursor: not-allowed; }
 		.proxyip-pool-row .idx { color: #9ca3af; width: 28px; flex-shrink: 0; }
-		.proxyip-pool-row .ip { flex: 1; min-width: 0; word-break: break-all; }
+		.proxyip-pool-row .ip {
+			flex: 1;
+			min-width: 0;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
 		.proxyip-pool-row button,
 		.exit-rule-card button {
 			flex-shrink: 0;
 		}
+		#exitRuleSection .btn {
+			width: auto;
+			margin-top: 4px;
+		}
 		.proxyip-probe-ok { color: #059669; font-size: 11px; }
 		.proxyip-probe-fail { color: #dc2626; font-size: 11px; }
 		.exit-rule-card {
+			display: block;
+			width: 100%;
+			box-sizing: border-box;
 			border: 1px solid #e5e7eb;
 			border-radius: 10px;
-			padding: 12px;
-			margin-bottom: 10px;
+			padding: 16px;
+			margin-bottom: 12px;
 			background: #f9fafb;
+		}
+		html.dark-mode .exit-rule-card {
+			border-color: #374151;
+			background: #1f2937;
 		}
 		.exit-rule-card .rule-grid {
 			display: grid;
-			grid-template-columns: 1fr 1fr;
-			gap: 8px;
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+			gap: 12px;
 		}
-		.exit-rule-card textarea {
-			min-height: 72px;
+		.module #exitRuleSection .exit-rule-card textarea.exit-rule-match {
+			min-height: 140px !important;
 			width: 100%;
 			font-size: 13px;
+			line-height: 1.5;
 		}
 		.exit-rule-hint {
+			display: block;
 			font-size: 12px;
 			color: #6b7280;
-			margin: 4px 0 10px;
+			margin: 4px 0 12px;
+			line-height: 1.5;
 		}
 		.proxyip-raw-hidden { display: none !important; }
 		.proxyip-org {
@@ -9354,6 +9403,18 @@
 			flex: 1;
 			min-width: 0;
 			word-break: break-all;
+		}
+		@media (max-width: 768px) {
+			.exit-rule-card .rule-grid {
+				grid-template-columns: 1fr;
+			}
+			.proxyip-pool-row {
+				flex-wrap: wrap;
+			}
+			.proxyip-pool-row .ip {
+				flex: 1 1 100%;
+				white-space: nowrap;
+			}
 		}
 
 		.line-editor.line-editor-wrap textarea {
@@ -10780,10 +10841,10 @@
 						</select>
 					</div>
 
-					<div id="proxyIPSection" class="form-group">
-						<div class="form-group">
+					<div id="proxyIPSection" class="form-group proxyip-block">
+						<div class="form-group proxyip-block">
 							<label>PROXYIP 池</label>
-							<div class="input-wrapper">
+							<div class="proxyip-stack">
 								<div class="checkbox-group">
 									<input type="checkbox" id="autoProxy" title="启用自动获取: 使用默认内置的PROXYIP"
 										onchange="toggleAutoProxy(); markModified('proxy')">
@@ -10907,7 +10968,7 @@
 						</div>
 					</div>
 
-					<div class="form-group" id="exitRuleSection">
+					<div class="form-group proxyip-block" id="exitRuleSection">
 						<label>出口规则（按站点固定落地 IP）</label>
 						<p class="exit-rule-hint">命中域名会跳过 Cloudflare 直连，只用指定 PROXYIP。钉定 IP 保存前必须探活，可以填池外地址，不要填 HTTPS CONNECT / $https:// 链式地址。</p>
 						<div id="exitRuleList"></div>

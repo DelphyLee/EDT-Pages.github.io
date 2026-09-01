@@ -306,7 +306,7 @@
 			transition: opacity .3s ease
 		}
 
-		.form-group input,
+		.form-group input:not([type="checkbox"]),
 		.form-group select,
 		.form-group textarea {
 			width: 100%;
@@ -327,7 +327,7 @@
 			padding-left: 48px
 		}
 
-		.form-group input:focus,
+		.form-group input:not([type="checkbox"]):focus,
 		.form-group select:focus,
 		.form-group textarea:focus {
 			outline: 0 !important;
@@ -339,7 +339,7 @@
 			opacity: .7
 		}
 
-		.form-group input:disabled,
+		.form-group input:not([type="checkbox"]):disabled,
 		.form-group select:disabled {
 			background-color: #f3f4f6 !important;
 			color: #9ca3af !important;
@@ -2559,7 +2559,7 @@
 				margin-bottom: 8px
 			}
 
-			.form-group input,
+			.form-group input:not([type="checkbox"]),
 			.form-group select,
 			.form-group textarea {
 				padding: 14px;
@@ -2805,7 +2805,7 @@
 			color: var(--text-secondary) !important
 		}
 
-		html.dark-mode .module .form-group input,
+		html.dark-mode .module .form-group input:not([type="checkbox"]),
 		html.dark-mode .module .form-group select,
 		html.dark-mode .module .form-group textarea {
 			background: var(--input-bg);
@@ -3489,7 +3489,7 @@
 			display: block
 		}
 
-		.module .form-group input,
+		.module .form-group input:not([type="checkbox"]),
 		.module .form-group select,
 		.module .form-group textarea {
 			padding: 8px 8px;
@@ -9380,6 +9380,65 @@
 			color: #f9fafb;
 		}
 		.proxyip-pool-row .idx { color: #9ca3af; width: 28px; flex-shrink: 0; }
+		.proxyip-enable-label {
+			display: flex !important;
+			align-items: center;
+			gap: 6px;
+			white-space: nowrap;
+			font-size: 12px;
+			color: #6b7280;
+			cursor: pointer;
+			flex-shrink: 0;
+			margin: 0;
+		}
+		html.dark-mode .proxyip-enable-label {
+			color: #e5e7eb !important;
+		}
+		.proxyip-enable-checkbox,
+		.form-group .proxyip-enable-checkbox,
+		.module .form-group .proxyip-enable-checkbox {
+			width: 18px !important;
+			min-width: 18px !important;
+			height: 18px !important;
+			margin: 0 !important;
+			padding: 0 !important;
+			flex-shrink: 0;
+			cursor: pointer;
+			border: 2px solid #9ca3af !important;
+			border-radius: 4px !important;
+			background: transparent !important;
+			box-shadow: none !important;
+			-webkit-appearance: none !important;
+			appearance: none !important;
+			position: relative;
+			box-sizing: border-box;
+		}
+		.proxyip-enable-checkbox:hover {
+			border-color: #faab41 !important;
+		}
+		.proxyip-enable-checkbox:checked {
+			background: linear-gradient(135deg, #faab41 0, #f6821f 100%) !important;
+			border-color: #faab41 !important;
+		}
+		.proxyip-enable-checkbox:checked::after {
+			content: '';
+			position: absolute;
+			left: 5px;
+			top: 1px;
+			width: 4px;
+			height: 8px;
+			border: solid #fff;
+			border-width: 0 2px 2px 0;
+			transform: rotate(45deg);
+		}
+		html.dark-mode .proxyip-enable-checkbox {
+			border-color: #9ca3af !important;
+			background: #1f2937 !important;
+		}
+		html.dark-mode .proxyip-enable-checkbox:checked {
+			background: linear-gradient(135deg, #7c3aed 0, #5b21b6 100%) !important;
+			border-color: #7c3aed !important;
+		}
 		.proxyip-pool-row .ip {
 			flex: 1;
 			min-width: 0;
@@ -9641,10 +9700,10 @@
 				line-height: 1.4;
 			}
 
-			.module .form-group input,
+			.module .form-group input:not([type="checkbox"]),
 			.module .form-group select,
 			.module .form-group textarea,
-			.form-group input,
+			.form-group input:not([type="checkbox"]),
 			.form-group select,
 			.form-group textarea {
 				min-width: 0;
@@ -10026,10 +10085,10 @@
 				margin-bottom: 11px;
 			}
 
-			.module .form-group input,
+			.module .form-group input:not([type="checkbox"]),
 			.module .form-group select,
 			.module .form-group textarea,
-			.form-group input,
+			.form-group input:not([type="checkbox"]),
 			.form-group select,
 			.form-group textarea {
 				padding: 8px;
@@ -17607,7 +17666,7 @@
 				const checked = enabled.size === 0 ? '' : (enabled.has(ip) ? ' checked' : '');
 				return `<div class="proxyip-pool-row">
 					<span class="idx">#${idx + 1}</span>
-					<label style="display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px;color:#4b5563;">
+					<label class="proxyip-enable-label">
 						<input type="checkbox" class="proxyip-enable-checkbox" value="${escapeHtml(ip)}"${checked} onchange="onProxyIPEnableChange()">启用
 					</label>
 					<span class="ip">${escapeHtml(ip)}</span>

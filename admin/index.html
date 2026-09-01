@@ -9249,6 +9249,113 @@
 			overflow: auto;
 		}
 
+		.proxyip-add-row {
+			display: flex;
+			gap: 8px;
+			margin-top: 8px;
+		}
+		.proxyip-add-row input {
+			flex: 1;
+			min-width: 0;
+		}
+		.proxyip-pool-toolbar {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin-top: 10px;
+		}
+		.proxyip-pool-toolbar input {
+			flex: 1;
+			min-width: 0;
+			padding: 8px 12px;
+			font-size: 13px;
+		}
+		.proxyip-pool-count {
+			font-size: 12px;
+			color: #6b7280;
+			white-space: nowrap;
+		}
+		.proxyip-pool-box,
+		.proxyip-scan-list,
+		.exit-rule-box {
+			margin-top: 8px;
+			min-height: 300px;
+			max-height: 300px;
+			overflow-y: auto;
+			overflow-x: hidden;
+			resize: vertical;
+			border: 2px solid #e5e7eb;
+			border-radius: 12px;
+			background: #ffffff;
+			scrollbar-width: thin;
+		}
+		.proxyip-scan-list {
+			min-height: 240px;
+			max-height: 320px;
+		}
+		html.dark-mode .proxyip-pool-box,
+		html.dark-mode .proxyip-scan-list,
+		html.dark-mode .exit-rule-box {
+			border-color: #374151;
+			background: #111827;
+		}
+		.proxyip-pool-row,
+		.proxyip-scan-row {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 8px 12px;
+			border-bottom: 1px solid #f3f4f6;
+			font-family: 'Fira Code', Consolas, monospace;
+			font-size: 13px;
+		}
+		.proxyip-pool-row:nth-child(even),
+		.proxyip-scan-row:nth-child(even) {
+			background: rgba(31, 41, 55, 0.05);
+		}
+		.proxyip-scan-row.is-success { cursor: pointer; }
+		.proxyip-scan-row.is-success:hover { background: #eff6ff; }
+		.proxyip-scan-row.is-selected { outline: 2px solid #2563eb; }
+		.proxyip-scan-row.is-disabled { opacity: 0.55; cursor: not-allowed; }
+		.proxyip-pool-row .idx { color: #9ca3af; width: 28px; flex-shrink: 0; }
+		.proxyip-pool-row .ip { flex: 1; min-width: 0; word-break: break-all; }
+		.proxyip-pool-row button,
+		.exit-rule-card button {
+			flex-shrink: 0;
+		}
+		.proxyip-probe-ok { color: #059669; font-size: 11px; }
+		.proxyip-probe-fail { color: #dc2626; font-size: 11px; }
+		.exit-rule-card {
+			border: 1px solid #e5e7eb;
+			border-radius: 10px;
+			padding: 12px;
+			margin-bottom: 10px;
+			background: #f9fafb;
+		}
+		.exit-rule-card .rule-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+		}
+		.exit-rule-card textarea {
+			min-height: 72px;
+			width: 100%;
+			font-size: 13px;
+		}
+		.exit-rule-hint {
+			font-size: 12px;
+			color: #6b7280;
+			margin: 4px 0 10px;
+		}
+		.proxyip-raw-hidden { display: none !important; }
+		.proxyip-org {
+			color: #4b5563;
+			font-size: 12px;
+			flex: 1;
+			min-width: 0;
+			word-break: break-all;
+		}
+
 		.line-editor.line-editor-wrap textarea {
 			white-space: pre-wrap !important;
 			word-break: break-all !important;
@@ -10675,19 +10782,32 @@
 
 					<div id="proxyIPSection" class="form-group">
 						<div class="form-group">
-							<label for="proxyIP">PROXYIP</label>
+							<label>PROXYIP 池</label>
 							<div class="input-wrapper">
-								<input type="text" id="proxyIP" title="PROXYIP" placeholder="proxyip.cmliussss.net"
-									onchange="processProxyIP()" oninput="processProxyIP()">
 								<div class="checkbox-group">
 									<input type="checkbox" id="autoProxy" title="启用自动获取: 使用默认内置的PROXYIP"
 										onchange="toggleAutoProxy(); markModified('proxy')">
 									<label for="autoProxy" class="checkbox-label"
 										title="启用自动获取: 使用默认内置的PROXYIP">启用自动获取</label>
 								</div>
-								<button type="button" class="btn btn-secondary" onclick="openProxyIPListPicker()"
-									style="margin-top: 8px;"
-									title="从当前 PROXYIP 池中可视化勾选/筛选 IP">📋 列表选择</button>
+								<div class="proxyip-add-row">
+									<input type="text" id="proxyIPAddInput" title="添加 PROXYIP"
+										placeholder="添加 IP 或域名:端口，支持逗号/换行批量粘贴">
+									<button type="button" class="btn btn-secondary" onclick="addProxyIPPoolItems()">添加</button>
+								</div>
+								<textarea id="proxyIP" class="proxyip-raw-hidden" title="PROXYIP" onchange="processProxyIP(); renderProxyIPPoolList()"></textarea>
+								<div class="proxyip-pool-toolbar">
+									<input type="text" id="proxyIPPoolSearch" placeholder="搜索 IP..." oninput="renderProxyIPPoolList()">
+									<span id="proxyIPPoolCount" class="proxyip-pool-count"></span>
+								</div>
+								<div class="proxyip-pool-box" id="proxyIPPoolBox">
+									<div class="proxyip-pool-list" id="proxyIPPoolList"></div>
+								</div>
+								<details style="margin-top: 8px; font-size: 13px; color: #6b7280;">
+									<summary style="cursor: pointer;">原始文本</summary>
+									<textarea id="proxyIPRawText" title="PROXYIP 原始文本" style="min-height: 90px; margin-top: 8px;"
+										onchange="syncProxyIPPoolFromRawText()"></textarea>
+								</details>
 							</div>
 						</div>
 					</div>
@@ -10785,6 +10905,13 @@
 								</div>
 							</div>
 						</div>
+					</div>
+
+					<div class="form-group" id="exitRuleSection">
+						<label>出口规则（按站点固定落地 IP）</label>
+						<p class="exit-rule-hint">命中域名会跳过 Cloudflare 直连，只用指定 PROXYIP。钉定 IP 保存前必须探活，可以填池外地址，不要填 HTTPS CONNECT / $https:// 链式地址。</p>
+						<div id="exitRuleList"></div>
+						<button type="button" class="btn btn-secondary" onclick="addExitRuleRow()">添加规则</button>
 					</div>
 
 					<div class="module-footer">
@@ -16828,13 +16955,9 @@
 					</div>
 
 					<div class="form-group" id="proxyIPProxySelectGroup">
-						<label for="proxyIPProxySelect">🌐 选择目标代理 (最多8个)</label>
-						<div class="input-wrapper">
-							<select id="proxyIPProxySelect" onchange="addSelectedProxyIP(); updateProxyMap('proxyip');"
-								style="padding-left: 16px; font-family: 'Fira Code', monospace; font-size: 12px;">
-								<option value=""></option>
-							</select>
-						</div>
+						<label>🌐 选择目标代理 (最多8个，点选可用项)</label>
+						<select id="proxyIPProxySelect" class="proxyip-raw-hidden" onchange="updateProxyMap('proxyip')"></select>
+						<div class="proxyip-scan-list" id="proxyIPProxyList"></div>
 					</div>
 
 					<div id="selectedProxyIPsContainer" class="selected-proxies-tags"
@@ -17302,6 +17425,302 @@
 			}
 		}
 		// ========== PROXYIP 列表选择器功能结束 ==========
+		const DEFAULT_EXIT_RULES = [{
+			名称: 'Gemini',
+			匹配: [
+				'gemini.google.com',
+				'*.gemini.google.com',
+				'aistudio.google.com',
+				'generativelanguage.googleapis.com',
+				'alkalimakersuite-pa.clients6.google.com'
+			],
+			proxyip: '99.63.206.163'
+		}];
+		const proxyIPProbeCache = {};
+
+		function splitProxyIPItems(text) {
+			return String(text || '')
+				.split(/[\s,;]+/)
+				.map(s => s.trim())
+				.filter(Boolean)
+				.filter(s => s.toLowerCase() !== 'auto');
+		}
+
+		function getProxyIPPoolItems() {
+			const input = document.getElementById('proxyIP');
+			return splitProxyIPItems(input ? input.value : '');
+		}
+
+		function setProxyIPPoolItems(items) {
+			const unique = [...new Set(items.map(s => String(s || '').trim()).filter(Boolean))];
+			const input = document.getElementById('proxyIP');
+			const raw = document.getElementById('proxyIPRawText');
+			const joined = unique.join(',');
+			if (input) input.value = joined;
+			if (raw && raw.value !== unique.join('\n')) raw.value = unique.join('\n');
+			renderProxyIPPoolList();
+			markModified('proxy');
+		}
+
+		function syncProxyIPPoolFromRawText() {
+			const raw = document.getElementById('proxyIPRawText');
+			setProxyIPPoolItems(splitProxyIPItems(raw ? raw.value : ''));
+		}
+
+		function addProxyIPPoolItems() {
+			const addInput = document.getElementById('proxyIPAddInput');
+			const extra = splitProxyIPItems(addInput ? addInput.value : '');
+			if (!extra.length) {
+				showToast('请输入要添加的 PROXYIP', 'warning');
+				return;
+			}
+			setProxyIPPoolItems(getProxyIPPoolItems().concat(extra));
+			if (addInput) addInput.value = '';
+			const autoProxy = document.getElementById('autoProxy');
+			if (autoProxy && autoProxy.checked) {
+				autoProxy.checked = false;
+				toggleAutoProxy();
+			}
+		}
+
+		function removeProxyIPPoolItem(ip) {
+			setProxyIPPoolItems(getProxyIPPoolItems().filter(item => item !== ip));
+		}
+
+		function getEnabledCustomProxyIPSet() {
+			const active = currentConfig?.反代?.自定义PROXYIP池;
+			if (!active) return new Set();
+			return new Set(splitProxyIPItems(active));
+		}
+
+		function collectEnabledCustomProxyIPs() {
+			const checked = document.querySelectorAll('.proxyip-enable-checkbox:checked');
+			return Array.from(checked).map(cb => cb.value);
+		}
+
+		function renderProxyIPPoolList() {
+			const list = document.getElementById('proxyIPPoolList');
+			const countEl = document.getElementById('proxyIPPoolCount');
+			if (!list) return;
+			const items = getProxyIPPoolItems();
+			const query = (document.getElementById('proxyIPPoolSearch')?.value || '').trim().toLowerCase();
+			const enabled = getEnabledCustomProxyIPSet();
+			const filtered = query ? items.filter(ip => ip.toLowerCase().includes(query)) : items;
+			if (countEl) countEl.textContent = `共 ${items.length} 个` + (query ? `，显示 ${filtered.length}` : '') + (enabled.size ? `，启用 ${enabled.size}` : '');
+			if (!filtered.length) {
+				list.innerHTML = '<div class="proxyip-pool-row" style="color:#9ca3af;">暂无 PROXYIP，请添加或从「获取更多 PROXYIP」选择</div>';
+				return;
+			}
+			list.innerHTML = filtered.map((ip, idx) => {
+				const probe = proxyIPProbeCache[ip];
+				let probeHtml = '';
+				if (probe?.status === 'ok') probeHtml = `<span class="proxyip-probe-ok">通 ${probe.loc || ''} ${probe.ip || ''}</span>`;
+				else if (probe?.status === 'fail') probeHtml = `<span class="proxyip-probe-fail">不通 ${escapeHtml(probe.error || '')}</span>`;
+				else if (probe?.status === 'testing') probeHtml = '<span>检测中...</span>';
+				const checked = enabled.size === 0 ? '' : (enabled.has(ip) ? ' checked' : '');
+				return `<div class="proxyip-pool-row">
+					<span class="idx">#${idx + 1}</span>
+					<label style="display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px;color:#4b5563;">
+						<input type="checkbox" class="proxyip-enable-checkbox" value="${escapeHtml(ip)}"${checked} onchange="onProxyIPEnableChange()">启用
+					</label>
+					<span class="ip">${escapeHtml(ip)}</span>
+					${probeHtml}
+					<button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="probeOneProxyIP('${escapeHtml(ip).replace(/'/g, "\\'")}')">检测</button>
+					<button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="removeProxyIPPoolItem('${escapeHtml(ip).replace(/'/g, "\\'")}')">删除</button>
+				</div>`;
+			}).join('');
+		}
+
+		function onProxyIPEnableChange() {
+			if (typeof currentConfig === 'undefined') return;
+			if (!currentConfig.反代) currentConfig.反代 = {};
+			const selected = collectEnabledCustomProxyIPs();
+			if (selected.length) currentConfig.反代.自定义PROXYIP池 = selected.join(',');
+			else delete currentConfig.反代.自定义PROXYIP池;
+			markModified('proxy');
+			const countEl = document.getElementById('proxyIPPoolCount');
+			if (countEl) {
+				const items = getProxyIPPoolItems();
+				countEl.textContent = `共 ${items.length} 个` + (selected.length ? `，启用 ${selected.length}` : '');
+			}
+		}
+
+		async function probeOneProxyIP(ip) {
+			proxyIPProbeCache[ip] = { status: 'testing' };
+			renderProxyIPPoolList();
+			try {
+				const result = await probeProxyIPOnWorker(ip);
+				proxyIPProbeCache[ip] = result.success
+					? { status: 'ok', ip: result.ip, loc: result.loc, responseTime: result.responseTime }
+					: { status: 'fail', error: result.error || '失败' };
+			} catch (err) {
+				proxyIPProbeCache[ip] = { status: 'fail', error: err.message || String(err) };
+			}
+			renderProxyIPPoolList();
+			return proxyIPProbeCache[ip];
+		}
+
+		async function probeProxyIPOnWorker(ip) {
+			const response = await fetch('/admin/check?proxyip=' + encodeURIComponent(ip) + '&_t=' + Date.now(), { cache: 'no-store' });
+			if (!response.ok) throw new Error('HTTP ' + response.status);
+			return response.json();
+		}
+
+		function normalizeExitRules(raw) {
+			if (!Array.isArray(raw)) return [];
+			return raw.map(item => ({
+				名称: String(item?.名称 || item?.name || '').trim(),
+				匹配: Array.isArray(item?.匹配) ? item.匹配 : String(item?.匹配 || '').split(/[,;\s]+/).filter(Boolean),
+				proxyip: String(item?.proxyip || item?.PROXYIP || '').trim()
+			})).filter(item => item.proxyip || item.匹配.length || item.名称);
+		}
+
+		function collectExitRulesFromForm() {
+			return Array.from(document.querySelectorAll('.exit-rule-card')).map(card => {
+				const 名称 = card.querySelector('.exit-rule-name')?.value.trim() || '';
+				const proxyip = card.querySelector('.exit-rule-proxyip')?.value.trim() || '';
+				const 匹配 = String(card.querySelector('.exit-rule-match')?.value || '').split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+				return { 名称: 名称 || proxyip, 匹配, proxyip };
+			}).filter(rule => rule.proxyip && rule.匹配.length);
+		}
+
+		function renderExitRuleList(rules) {
+			const box = document.getElementById('exitRuleList');
+			if (!box) return;
+			const list = normalizeExitRules(rules);
+			const data = list.length ? list : DEFAULT_EXIT_RULES;
+			box.innerHTML = data.map((rule, idx) => renderExitRuleCard(rule, idx)).join('');
+		}
+
+		function renderExitRuleCard(rule, idx) {
+			const poolOptions = getProxyIPPoolItems().map(ip => `<option value="${escapeHtml(ip)}"></option>`).join('');
+			return `<div class="exit-rule-card" data-idx="${idx}">
+				<div class="rule-grid">
+					<div>
+						<label>名称</label>
+						<input type="text" class="exit-rule-name" value="${escapeHtml(rule.名称 || '')}" oninput="markModified('proxy')">
+					</div>
+					<div>
+						<label>固定 PROXYIP</label>
+						<input type="text" class="exit-rule-proxyip" list="exitRuleProxyIPDatalist" value="${escapeHtml(rule.proxyip || '')}" oninput="markModified('proxy')" placeholder="99.63.206.163">
+					</div>
+				</div>
+				<label style="display:block;margin-top:8px;">匹配域名（逗号或换行，支持 *）</label>
+				<textarea class="exit-rule-match" oninput="markModified('proxy')">${escapeHtml((rule.匹配 || []).join('\n'))}</textarea>
+				<div style="margin-top:8px;display:flex;gap:8px;">
+					<button type="button" class="btn btn-secondary" onclick="probeExitRuleCard(this)">检测此 IP</button>
+					<button type="button" class="btn btn-secondary" onclick="removeExitRuleCard(this)">删除规则</button>
+				</div>
+				<div class="exit-rule-probe" style="margin-top:6px;font-size:12px;"></div>
+				<datalist id="exitRuleProxyIPDatalist">${poolOptions}</datalist>
+			</div>`;
+		}
+
+		function addExitRuleRow() {
+			const box = document.getElementById('exitRuleList');
+			if (!box) return;
+			box.insertAdjacentHTML('beforeend', renderExitRuleCard({ 名称: '', 匹配: [], proxyip: '' }, box.children.length));
+			markModified('proxy');
+		}
+
+		function removeExitRuleCard(btn) {
+			btn.closest('.exit-rule-card')?.remove();
+			markModified('proxy');
+		}
+
+		async function probeExitRuleCard(btn) {
+			const card = btn.closest('.exit-rule-card');
+			const ip = card.querySelector('.exit-rule-proxyip')?.value.trim();
+			const status = card.querySelector('.exit-rule-probe');
+			if (!ip) {
+				showToast('请先填写固定 PROXYIP', 'warning');
+				return null;
+			}
+			if (status) status.textContent = '检测中...';
+			try {
+				const result = await probeProxyIPOnWorker(ip);
+				if (status) {
+					status.className = 'exit-rule-probe ' + (result.success ? 'proxyip-probe-ok' : 'proxyip-probe-fail');
+					status.textContent = result.success
+						? `通  落地 ${result.ip || ''}  ${result.loc || ''}  ${result.responseTime || ''}ms`
+						: `不通  ${result.error || ''}`;
+				}
+				return result;
+			} catch (err) {
+				if (status) {
+					status.className = 'exit-rule-probe proxyip-probe-fail';
+					status.textContent = '不通  ' + (err.message || err);
+				}
+				return { success: false, error: err.message || String(err) };
+			}
+		}
+
+		function fillScanProxyIPList(htmlRows, placeholder) {
+			const box = document.getElementById('proxyIPProxyList');
+			if (!box) return;
+			box.innerHTML = htmlRows || `<div class="proxyip-scan-row" style="color:#9ca3af;">${placeholder || ''}</div>`;
+		}
+
+		function renderProxyIPScanList(sortedProxies, verificationStatus) {
+			const box = document.getElementById('proxyIPProxyList');
+			if (!box) return;
+			if (!sortedProxies || !sortedProxies.length) {
+				fillScanProxyIPList('', '当前地区无数据');
+				return;
+			}
+			box.innerHTML = sortedProxies.map(proxy => {
+				const status = verificationStatus[proxy.proxy] || { status: 'pending' };
+				let emoji = '⏳';
+				let statusText = '验证中';
+				if (status.status === 'success') {
+					const supportsV4 = status.supports_ipv4 === true;
+					const supportsV6 = status.supports_ipv6 === true;
+					if (supportsV4 && supportsV6) emoji = '✅✅';
+					else if (supportsV4 && !supportsV6) emoji = '✅🔴';
+					else if (!supportsV4 && supportsV6) emoji = '🔴✅';
+					else emoji = '🔴🔴';
+					statusText = `${status.responseTime}ms`;
+				} else if (status.status === 'timeout') {
+					emoji = '🔴';
+					statusText = '已超时';
+				} else if (status.status === 'failed') {
+					emoji = '🔴';
+					statusText = '不可用';
+				}
+				const company = proxyIPCompanyText(proxy);
+				const city = proxy.city || '';
+				const asn = proxy.asn ? `AS${proxy.asn}` : '';
+				const selected = typeof selectedProxyIPs !== 'undefined' && selectedProxyIPs.includes(proxy.proxy);
+				const disabled = status.status !== 'success';
+				const ip = proxy.proxy;
+				return `<div class="proxyip-scan-row ${disabled ? 'is-disabled' : 'is-success'} ${selected ? 'is-selected' : ''}" data-ip="${escapeHtml(ip)}" onclick="onScanProxyIPRowClick(this.dataset.ip, this)">
+					<span>${emoji} ${statusText}</span>
+					<span class="ip">${escapeHtml(proxy.ip || ip)}</span>
+					<span class="proxyip-org">${escapeHtml([city, asn, company].filter(Boolean).join(' · ') || '未知公司')}</span>
+				</div>`;
+			}).join('');
+		}
+
+		function proxyIPCompanyText(proxy) {
+			return String(proxy?.asOrganization || proxy?.company || proxy?.company_name || proxy?.org || '').trim();
+		}
+
+		function onScanProxyIPRowClick(ip, el) {
+			if (el.classList.contains('is-disabled')) return;
+			const select = document.getElementById('proxyIPProxySelect');
+			if (select) {
+				if (![...select.options].some(opt => opt.value === ip)) {
+					const opt = document.createElement('option');
+					opt.value = ip;
+					select.appendChild(opt);
+				}
+				select.value = ip;
+			}
+			addSelectedProxyIP(ip);
+			updateProxyMap('proxyip');
+			document.querySelectorAll('.proxyip-scan-row.is-selected').forEach(node => node.classList.remove('is-selected'));
+			el.classList.add('is-selected');
+		}
 		let cachedWorkerVersionRawText = '';
 		let cachedLatestOnlineVersion = 0;
 		let cachedCurrentVersionNumber = 0;
@@ -18032,12 +18451,16 @@
 			if (!socksEnabled) {
 				setProxyModeSelection('auto');
 				document.getElementById('proxyIP').value = currentConfig.反代?.PROXYIP || '';
+				const raw = document.getElementById('proxyIPRawText');
+				if (raw) raw.value = splitProxyIPItems(currentConfig.反代?.PROXYIP || '').join('\n');
 				document.getElementById('autoProxy').checked = (currentConfig.反代?.PROXYIP === 'auto');
 				document.getElementById('proxyIP').disabled = (currentConfig.反代?.PROXYIP === 'auto');
+				renderProxyIPPoolList();
 			} else {
 				setProxyModeSelection(socksEnabled);
 				populateProxyProtocolFromConfig(getSelectedProxyProtocol());
 			}
+			renderExitRuleList(currentConfig.反代?.出口规则);
 
 			updateProxyMode(false, false);
 		}
@@ -20298,6 +20721,10 @@
 		function toggleAutoProxy() {
 			const autoProxy = document.getElementById('autoProxy').checked;
 			document.getElementById('proxyIP').disabled = autoProxy;
+			const addInput = document.getElementById('proxyIPAddInput');
+			if (addInput) addInput.disabled = autoProxy;
+			const box = document.getElementById('proxyIPPoolBox');
+			if (box) box.style.opacity = autoProxy ? '0.5' : '1';
 			markModified('proxy');
 		}
 
@@ -20889,9 +21316,20 @@
 
 			const existingReverseProxyConfig = currentConfig.反代 || {};
 			const existingSocks5Config = existingReverseProxyConfig.SOCKS5 || {};
+			const exitRules = collectExitRulesFromForm();
+			for (const rule of exitRules) {
+				showToast(`正在检测出口「${rule.名称 || rule.proxyip}」...`, 'info');
+				const result = await probeProxyIPOnWorker(rule.proxyip);
+				if (!result?.success) {
+					showToast(`出口规则「${rule.名称 || rule.proxyip}」不通，未保存：${result?.error || '探活失败'}`, 'error');
+					return;
+				}
+			}
+			const enabledPool = collectEnabledCustomProxyIPs();
 			currentConfig.反代 = {
 				...existingReverseProxyConfig,
 				PROXYIP: proxyIP,
+				出口规则: exitRules,
 				SOCKS5: {
 					...existingSocks5Config,
 					启用: socksEnabled,
@@ -20900,6 +21338,8 @@
 					白名单: existingSocks5Config.白名单
 				}
 			};
+			if (enabledPool.length) currentConfig.反代.自定义PROXYIP池 = enabledPool.join(',');
+			else delete currentConfig.反代.自定义PROXYIP池;
 
 			await saveConfigToServer('proxy');
 		}
@@ -27189,9 +27629,9 @@
 			updateProxyDisplay('proxyip');
 		}
 
-		function addSelectedProxyIP() {
+		function addSelectedProxyIP(ipFromRow) {
 			const select = document.getElementById('proxyIPProxySelect');
-			const ip = select.value;
+			const ip = ipFromRow || (select ? select.value : '');
 			if (!ip) return;
 
 			if (selectedProxyIPs.length >= 8) {
@@ -27257,21 +27697,17 @@
 		}
 
 		function confirmSelectProxyIP() {
-			const input = document.getElementById('proxyIP');
-			if (input) {
-				input.value = selectedProxyIPs.join(',');
-				input.dispatchEvent(new Event('change', { bubbles: true }));
-				markModified('proxy');
+			const extra = selectedProxyIPs.slice();
+			if (extra.length) {
+				setProxyIPPoolItems(getProxyIPPoolItems().concat(extra));
+				const autoProxyCheck = document.getElementById('autoProxy');
+				if (autoProxyCheck && autoProxyCheck.checked) {
+					autoProxyCheck.checked = false;
+					if (typeof toggleAutoProxy === 'function') toggleAutoProxy();
+				}
 			}
 
 			closeGetMoreProxyIPModal();
-
-			// 如果勾选了自动获取，取消勾选
-			const autoProxyCheck = document.getElementById('autoProxy');
-			if (autoProxyCheck && autoProxyCheck.checked) {
-				autoProxyCheck.checked = false;
-				if (typeof toggleAutoProxy === 'function') toggleAutoProxy();
-			}
 
 			const config = proxyConfigs['proxyip'];
 			if (config.abortController) {
@@ -27497,9 +27933,9 @@
 					statusText = '不可用';
 				}
 
-				// ProxyIP 模式下 label 稍微不同，不包含协议前缀
+				const company = proxyIPCompanyText(proxy);
 				const label = type === 'proxyip'
-					? `${emoji}[${statusText}]${proxy.ip}${proxy.city ? ` - ${proxy.city}` : ''},AS${proxy.asn}`
+					? `${emoji}[${statusText}]${proxy.ip}${proxy.city ? ` - ${proxy.city}` : ''},AS${proxy.asn}${company ? ',' + company : ''}`
 					: `${emoji}[${statusText}]${proxy.city},AS${proxy.asn},${proxy.asOrganization}`;
 
 				const disabled = !isSelectable || status.status !== 'success';
@@ -27526,6 +27962,10 @@
 			}
 
 			select.innerHTML = html;
+
+			if (type === 'proxyip' || selectId === 'proxyIPProxySelect') {
+				renderProxyIPScanList(sortedProxies, verificationStatus);
+			}
 
 			// 恢复用户的选择 (ProxyIP 模式下如果当前选中的仍然有效，也恢复)
 			if (successfulProxies.length > 0) {
@@ -27865,9 +28305,10 @@
 			// 设置select为验证中状态
 			const select = document.getElementById(config.proxySelectId);
 			select.innerHTML = '<option value="">正在验证可用性，请稍候...</option>';
+			if (type === 'proxyip') fillScanProxyIPList('', '正在验证可用性，请稍候...');
 
 			// 显示代理列表
-			populateProxySelect(selectedCountry, config.proxySelectId, window[config.countryMap], window[config.verificationStatus]);
+			populateProxySelect(selectedCountry, config.proxySelectId, window[config.countryMap], window[config.verificationStatus], type);
 
 			// 释放之前的 AbortController 并创建新的
 			if (config.abortController) {
@@ -27990,6 +28431,11 @@
 			const selectedCountry = document.getElementById(config.regionSelectId).value;
 			if (selectedCountry) {
 				populateProxySelect(selectedCountry, config.proxySelectId, window[config.countryMap], window[config.verificationStatus], type);
+
+				if (type === 'proxyip') {
+					updateProxyIPConfirmButton();
+					return;
+				}
 
 				// 更新确定按钮状态
 				const select = document.getElementById(config.proxySelectId);

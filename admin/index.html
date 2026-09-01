@@ -17612,7 +17612,7 @@
 
 		function getProxyIPPoolItems() {
 			const input = document.getElementById('proxyIP');
-			return splitProxyIPItems(input ? input.value : '');
+			return [...new Set(splitProxyIPItems(input ? input.value : ''))];
 		}
 
 		function setProxyIPPoolItems(items) {
@@ -17668,7 +17668,7 @@
 			return query ? items.filter(ip => ip.toLowerCase().includes(query)) : items;
 		}
 
-		function applyEnabledCustomProxyIPs(selected) {
+		function applyEnabledCustomProxyIPs(selected, rerender = true) {
 			if (typeof currentConfig === 'undefined') return;
 			if (!currentConfig.反代) currentConfig.反代 = {};
 			const unique = [...new Set((selected || []).map(ip => String(ip || '').trim()).filter(Boolean))];
@@ -17680,7 +17680,18 @@
 				toggleAutoProxy();
 			}
 			markModified('proxy');
-			renderProxyIPPoolList();
+			if (rerender) renderProxyIPPoolList();
+			else updateProxyIPPoolCount();
+		}
+
+		function updateProxyIPPoolCount() {
+			const countEl = document.getElementById('proxyIPPoolCount');
+			if (!countEl) return;
+			const items = getProxyIPPoolItems();
+			const query = (document.getElementById('proxyIPPoolSearch')?.value || '').trim().toLowerCase();
+			const enabled = getEnabledCustomProxyIPSet();
+			const filtered = query ? items.filter(ip => ip.toLowerCase().includes(query)) : items;
+			countEl.textContent = `共 ${items.length} 个` + (query ? `，显示 ${filtered.length}` : '') + (enabled.size ? `，启用 ${enabled.size}` : '');
 		}
 
 		function selectAllProxyIPPool() {
@@ -17743,7 +17754,7 @@
 				if (checkedNow.has(ip)) enabled.add(ip);
 				else enabled.delete(ip);
 			});
-			applyEnabledCustomProxyIPs([...enabled]);
+			applyEnabledCustomProxyIPs([...enabled], false);
 		}
 
 		async function probeOneProxyIP(ip) {

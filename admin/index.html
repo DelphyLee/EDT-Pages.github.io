@@ -9284,14 +9284,28 @@
 		.proxyip-pool-toolbar {
 			display: flex;
 			align-items: center;
+			flex-wrap: wrap;
 			gap: 10px;
 			width: 100%;
 		}
 		.proxyip-pool-toolbar input {
 			flex: 1;
-			min-width: 0;
+			min-width: 120px;
 			padding: 8px 12px;
 			font-size: 13px;
+		}
+		.proxyip-pool-actions {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			flex-shrink: 0;
+		}
+		.proxyip-pool-actions .btn {
+			width: auto;
+			margin: 0;
+			padding: 6px 10px;
+			font-size: 12px;
+			white-space: nowrap;
 		}
 		.proxyip-pool-count {
 			font-size: 12px;
@@ -10944,7 +10958,11 @@
 								<textarea id="proxyIP" class="proxyip-raw-hidden" title="PROXYIP" onchange="processProxyIP(); renderProxyIPPoolList()"></textarea>
 								<div class="proxyip-pool-toolbar">
 									<input type="text" id="proxyIPPoolSearch" placeholder="搜索 IP..." oninput="renderProxyIPPoolList()">
-									<span id="proxyIPPoolCount" class="proxyip-pool-count"></span>
+									<div class="proxyip-pool-actions">
+										<button type="button" class="btn btn-secondary" onclick="selectAllProxyIPPool()">全选</button>
+										<button type="button" class="btn btn-secondary" onclick="invertProxyIPPoolSelection()">反选</button>
+										<span id="proxyIPPoolCount" class="proxyip-pool-count"></span>
+									</div>
 								</div>
 								<div class="proxyip-pool-box" id="proxyIPPoolBox">
 									<div class="proxyip-pool-list" id="proxyIPPoolList"></div>
@@ -17644,6 +17662,46 @@
 			return Array.from(checked).map(cb => cb.value);
 		}
 
+		function getVisibleProxyIPPoolItems() {
+			const items = getProxyIPPoolItems();
+			const query = (document.getElementById('proxyIPPoolSearch')?.value || '').trim().toLowerCase();
+			return query ? items.filter(ip => ip.toLowerCase().includes(query)) : items;
+		}
+
+		function applyEnabledCustomProxyIPs(selected) {
+			if (typeof currentConfig === 'undefined') return;
+			if (!currentConfig.反代) currentConfig.反代 = {};
+			const unique = [...new Set((selected || []).map(ip => String(ip || '').trim()).filter(Boolean))];
+			if (unique.length) currentConfig.反代.自定义PROXYIP池 = unique.join(',');
+			else delete currentConfig.反代.自定义PROXYIP池;
+			const autoProxy = document.getElementById('autoProxy');
+			if (unique.length && autoProxy?.checked) {
+				autoProxy.checked = false;
+				toggleAutoProxy();
+			}
+			markModified('proxy');
+			renderProxyIPPoolList();
+		}
+
+		function selectAllProxyIPPool() {
+			const visible = getVisibleProxyIPPoolItems();
+			if (!visible.length) return;
+			const enabled = getEnabledCustomProxyIPSet();
+			visible.forEach(ip => enabled.add(ip));
+			applyEnabledCustomProxyIPs([...enabled]);
+		}
+
+		function invertProxyIPPoolSelection() {
+			const visible = getVisibleProxyIPPoolItems();
+			if (!visible.length) return;
+			const enabled = getEnabledCustomProxyIPSet();
+			visible.forEach(ip => {
+				if (enabled.has(ip)) enabled.delete(ip);
+				else enabled.add(ip);
+			});
+			applyEnabledCustomProxyIPs([...enabled]);
+		}
+
 		function renderProxyIPPoolList() {
 			const list = document.getElementById('proxyIPPoolList');
 			const countEl = document.getElementById('proxyIPPoolCount');
@@ -17678,17 +17736,14 @@
 		}
 
 		function onProxyIPEnableChange() {
-			if (typeof currentConfig === 'undefined') return;
-			if (!currentConfig.反代) currentConfig.反代 = {};
-			const selected = collectEnabledCustomProxyIPs();
-			if (selected.length) currentConfig.反代.自定义PROXYIP池 = selected.join(',');
-			else delete currentConfig.反代.自定义PROXYIP池;
-			markModified('proxy');
-			const countEl = document.getElementById('proxyIPPoolCount');
-			if (countEl) {
-				const items = getProxyIPPoolItems();
-				countEl.textContent = `共 ${items.length} 个` + (selected.length ? `，启用 ${selected.length}` : '');
-			}
+			const visible = new Set(getVisibleProxyIPPoolItems());
+			const enabled = getEnabledCustomProxyIPSet();
+			const checkedNow = new Set(collectEnabledCustomProxyIPs());
+			visible.forEach(ip => {
+				if (checkedNow.has(ip)) enabled.add(ip);
+				else enabled.delete(ip);
+			});
+			applyEnabledCustomProxyIPs([...enabled]);
 		}
 
 		async function probeOneProxyIP(ip) {

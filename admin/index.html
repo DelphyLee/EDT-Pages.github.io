@@ -9343,9 +9343,44 @@
 		}
 		.proxyip-scan-row.is-success { cursor: pointer; }
 		.proxyip-scan-row.is-success:hover { background: #eff6ff; }
-		html.dark-mode .proxyip-scan-row.is-success:hover { background: #1e3a5f; }
-		.proxyip-scan-row.is-selected { outline: 2px solid #2563eb; }
-		.proxyip-scan-row.is-disabled { opacity: 0.55; cursor: not-allowed; }
+		.proxyip-scan-row.is-selected { outline: 2px solid #2563eb; background: #dbeafe; }
+		.proxyip-scan-row.is-disabled { opacity: 0.7; cursor: not-allowed; }
+		.proxyip-scan-row .ip {
+			flex: 0 0 auto;
+			color: #111827;
+			font-weight: 600;
+			white-space: nowrap;
+		}
+		.proxyip-org {
+			color: #4b5563;
+			font-size: 12px;
+			flex: 1;
+			min-width: 0;
+			word-break: break-word;
+		}
+		html.dark-mode .proxyip-scan-row {
+			color: #e5e7eb;
+		}
+		html.dark-mode .proxyip-scan-row .ip {
+			color: #f9fafb;
+		}
+		html.dark-mode .proxyip-org {
+			color: #d1d5db;
+		}
+		html.dark-mode .proxyip-scan-row.is-success:hover,
+		html.dark-mode .proxyip-scan-row.is-selected,
+		html.dark-mode .proxyip-scan-row.is-selected:hover {
+			background: #1e3a5f;
+			color: #f9fafb;
+		}
+		html.dark-mode .proxyip-scan-row.is-success:hover .ip,
+		html.dark-mode .proxyip-scan-row.is-selected .ip {
+			color: #ffffff;
+		}
+		html.dark-mode .proxyip-scan-row.is-success:hover .proxyip-org,
+		html.dark-mode .proxyip-scan-row.is-selected .proxyip-org {
+			color: #e5e7eb;
+		}
 		.proxyip-pool-row .idx { color: #9ca3af; width: 28px; flex-shrink: 0; }
 		.proxyip-pool-row .ip {
 			flex: 1;
@@ -9397,13 +9432,6 @@
 			line-height: 1.5;
 		}
 		.proxyip-raw-hidden { display: none !important; }
-		.proxyip-org {
-			color: #4b5563;
-			font-size: 12px;
-			flex: 1;
-			min-width: 0;
-			word-break: break-all;
-		}
 		@media (max-width: 768px) {
 			.exit-rule-card .rule-grid {
 				grid-template-columns: 1fr;

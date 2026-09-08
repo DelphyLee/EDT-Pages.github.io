@@ -21802,8 +21802,10 @@
 					return;
 				}
 			}
-			// 使用当前配置中的完整启用集合，避免搜索过滤后只读取可见复选框而丢失隐藏项。
-			const enabledPool = [...getEnabledCustomProxyIPSet()];
+			// 使用当前配置中的完整启用集合，避免搜索过滤后只读取可见复选框而丢失隐藏项；
+			// 同时过滤掉已经从 PROXYIP 池删除的旧值。
+			const poolItems = new Set(getProxyIPPoolItems());
+			const enabledPool = [...getEnabledCustomProxyIPSet()].filter(ip => poolItems.has(ip));
 			currentConfig.反代 = {
 				...existingReverseProxyConfig,
 				PROXYIP: proxyIP,

@@ -18789,14 +18789,15 @@
 
 		function applyProxyConfigToForm() {
 			const socksEnabled = currentConfig.反代?.SOCKS5?.启用;
+			// 链式模式也初始化保留的池，保存时不能把隐藏输入框当作空池。
+			document.getElementById('proxyIP').value = currentConfig.反代?.PROXYIP || '';
+			const raw = document.getElementById('proxyIPRawText');
+			if (raw) raw.value = splitProxyIPItems(currentConfig.反代?.PROXYIP || '').join('\n');
+			document.getElementById('autoProxy').checked = (currentConfig.反代?.PROXYIP === 'auto');
+			document.getElementById('proxyIP').disabled = (currentConfig.反代?.PROXYIP === 'auto');
 
 			if (!socksEnabled) {
 				setProxyModeSelection('auto');
-				document.getElementById('proxyIP').value = currentConfig.反代?.PROXYIP || '';
-				const raw = document.getElementById('proxyIPRawText');
-				if (raw) raw.value = splitProxyIPItems(currentConfig.反代?.PROXYIP || '').join('\n');
-				document.getElementById('autoProxy').checked = (currentConfig.反代?.PROXYIP === 'auto');
-				document.getElementById('proxyIP').disabled = (currentConfig.反代?.PROXYIP === 'auto');
 				renderProxyIPPoolList();
 			} else {
 				setProxyModeSelection(socksEnabled);
@@ -18862,7 +18863,6 @@
 			const supportedProtocol = !['ss'].includes(document.getElementById('protocol')?.value || currentConfig?.协议类型);
 			const visible = alpnFeatureEnabled && hasALPNField && supportedProtocol;
 			group.style.display = visible ? '' : 'none';
-			if (visible) syncALPNSelectFromConfig();
 		}
 
 		function syncALPNSelectFromConfig() {
@@ -21616,7 +21616,21 @@
 			await saveConfigToServer('sub');
 		}
 
+		// 指纹与 ECH 必须一起收集并保存，避免跨模块选择只写入一半。
+		function collectTLSIdentityFromForm() {
+			const fingerprint = document.getElementById('fingerprint')?.value || currentConfig.Fingerprint;
+			const ech = !!document.getElementById('enableECH')?.checked;
+			if (currentConfig.ECH !== undefined && ech && !ECH_SUPPORTED_FINGERPRINTS.includes(fingerprint)) {
+				showToast('ECH 与当前指纹不兼容，请选择 Chrome / Firefox 指纹或关闭 ECH 后保存', 'error');
+				return false;
+			}
+			if (currentConfig.Fingerprint !== undefined) currentConfig.Fingerprint = fingerprint;
+			if (currentConfig.ECH !== undefined) currentConfig.ECH = ech;
+			return true;
+		}
+
 		async function saveConfig() {
+			if (!collectTLSIdentityFromForm()) return;
 			currentConfig.优选订阅生成.SUBNAME = document.getElementById('subName').value;
 			currentConfig.协议类型 = document.getElementById('protocol').value;
 			const ssMethodSelect = document.getElementById('ssMethod');
@@ -21645,11 +21659,6 @@
 			// 保存PATH（如果"完整节点路径"字段存在，表示后端支持编辑PATH）
 			if (currentConfig['完整节点路径'] !== undefined) {
 				currentConfig.PATH = document.getElementById('nodePATH').value;
-			}
-
-			// 保存Fingerprint（如果字段存在）
-			if (currentConfig['Fingerprint'] !== undefined) {
-				currentConfig['Fingerprint'] = document.getElementById('fingerprint').value;
 			}
 
 			// 保存 ALPN（如果字段存在）
@@ -21687,9 +21696,9 @@
 		}
 
 		async function saveEch() {
+			if (!collectTLSIdentityFromForm()) return;
 			// 保存ECH（如果字段存在）
 			if (currentConfig['ECH'] !== undefined) {
-				currentConfig['ECH'] = document.getElementById('enableECH').checked;
 
 				// 保存ECHConfig.DNS（如果存在）
 				if (currentConfig.ECHConfig?.DNS !== undefined) {
@@ -22011,6 +22020,7 @@
 
 		async function saveConfigToServer(section) {
 			try {
+				const submittedConfig = JSON.parse(JSON.stringify(currentConfig));
 				const response = await fetch('/admin/config.json', {
 					method: 'POST',
 					headers: {
@@ -22019,10 +22029,17 @@
 						'Pragma': 'no-cache',
 						'Expires': '0'
 					},
-					body: JSON.stringify(currentConfig)
+					body: JSON.stringify(submittedConfig)
 				});
 
 				if (!response.ok) throw new Error('保存失败');
+				// 更新已保存的联动字段快照，取消后续编辑时回到最近一次成功保存值。
+				if (section === 'config' || section === 'ech') {
+					for (const key of ['Fingerprint', 'ECH']) {
+						if (submittedConfig[key] !== undefined) originalConfig[key] = submittedConfig[key];
+					}
+					if (section === 'config' && submittedConfig.ALPN !== undefined) originalConfig.ALPN = submittedConfig.ALPN;
+				}
 				showToast('✅ 配置已保存，请更新订阅，才能获取最新节点内容！', 'success');
 				modifiedSections.delete(section);
 				updateButtonStates();
@@ -25664,6 +25681,18 @@
 			} else {
 				// 原有的cancelEdit逻辑
 				currentConfig = JSON.parse(JSON.stringify(originalConfig));
+				if (section === 'config' || section === 'ech') {
+					const fingerprintSelect = document.getElementById('fingerprint');
+					if (fingerprintSelect) fingerprintSelect.value = currentConfig.Fingerprint || 'chrome';
+					lastCommittedFingerprint = fingerprintSelect?.value || 'chrome';
+					const echCheckbox = document.getElementById('enableECH');
+					if (echCheckbox) echCheckbox.checked = !!currentConfig.ECH;
+					pendingECHConflictFingerprint = '';
+					pendingECHConflictSource = '';
+					document.getElementById('echFingerprintConflictModal')?.classList.remove('show');
+					updateECHOptionState();
+				}
+				if (section === 'config') syncALPNSelectFromConfig();
 
 				if (section === 'sub') {
 					const local = currentConfig.优选订阅生成?.local ?? true;

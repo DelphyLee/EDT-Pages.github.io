@@ -10743,7 +10743,7 @@
 						<div class="form-group mobile-half" id="fingerprintGroup">
 							<label for="fingerprint">指纹伪装</label>
 							<select id="fingerprint" title="浏览器指纹"
-								onchange="handleFingerprintChange(); markModified('config')">
+								onchange="handleFingerprintChange()">
 								<option value="chrome">chrome（支持ECH）</option>
 								<option value="firefox">firefox（支持ECH）</option>
 								<option value="safari">safari</option>
@@ -10754,6 +10754,19 @@
 								<option value="qq">qq</option>
 								<option value="random">random</option>
 								<option value="randomized">randomized</option>
+							</select>
+						</div>
+
+						<div class="form-group mobile-half" id="alpnGroup" style="display: none;">
+							<label for="alpn" title="ALPN 协商顺序，用于让客户端与服务端协商 HTTP/2、HTTP/1.1 或 HTTP/3。">ALPN</label>
+							<select id="alpn" title="ALPN 协商顺序" onchange="handleALPNChange(event)">
+								<option value="">客户端自动协商</option>
+								<option value="h3">h3</option>
+								<option value="h2">h2</option>
+								<option value="http/1.1">http/1.1</option>
+								<option value="h3,h2">h3,h2</option>
+								<option value="h2,http/1.1">h2,http/1.1</option>
+								<option value="h3,h2,http/1.1">h3,h2,http/1.1</option>
 							</select>
 						</div>
 					</div>
@@ -11426,6 +11439,36 @@
 				<button type="button" class="btn btn-confirm-skip-verify btn-confirm-reset"
 					onclick="confirmSkipVerify()">确认开启</button>
 				<button type="button" class="btn btn-secondary" onclick="closeSkipVerifyWarning()">关闭</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- 重置配置确认弹窗 -->
+	<div class="modal-overlay" id="alpnWarningModal" onclick="closeALPNWarning(event)">
+		<div class="modal" style="max-width: 520px; text-align: left;" onclick="event.stopPropagation()">
+			<button type="button" class="modal-close" onclick="closeALPNWarning()">×</button>
+			<h2 class="reset-modal-title">⚠️ 固定 ALPN</h2>
+			<p class="reset-modal-description">固定 ALPN 会限制 TLS 协商结果。只有确认上游和客户端都支持所选协议时才建议设置，否则可能导致节点握手失败。</p>
+			<p class="reset-modal-confirm" id="alpnWarningText">是否继续使用当前 ALPN？</p>
+			<div class="reset-modal-buttons">
+				<button type="button" class="btn btn-primary" onclick="confirmALPNSelection()">继续使用</button>
+				<button type="button" class="btn btn-secondary" onclick="keepAutoALPN()">恢复自动协商</button>
+				<button type="button" class="btn btn-secondary" onclick="closeALPNWarning()">取消</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- ECH 与指纹冲突提示 -->
+	<div class="modal-overlay" id="echFingerprintConflictModal" onclick="closeECHFingerprintConflict(event)">
+		<div class="modal" style="max-width: 560px; text-align: left;" onclick="event.stopPropagation()">
+			<button type="button" class="modal-close" onclick="closeECHFingerprintConflict()">×</button>
+			<h2 class="reset-modal-title">⚠️ ECH 与指纹不兼容</h2>
+			<p class="reset-modal-description">当前指纹不支持 ECH。请选择保留 ECH 并切换到兼容指纹，或者关闭 ECH 保留当前指纹。</p>
+			<div class="reset-modal-buttons">
+				<button type="button" class="btn btn-primary" onclick="resolveECHFingerprintConflict('chrome')">使用 Chrome 指纹并保留 ECH</button>
+				<button type="button" class="btn btn-primary" onclick="resolveECHFingerprintConflict('firefox')">使用 Firefox 指纹并保留 ECH</button>
+				<button type="button" class="btn btn-secondary" onclick="resolveECHFingerprintConflict('disable')">关闭 ECH，保留当前指纹</button>
+				<button type="button" class="btn btn-secondary" onclick="closeECHFingerprintConflict()">取消</button>
 			</div>
 		</div>
 	</div>
@@ -17461,6 +17504,8 @@
 		const TURN_SSTP_PROXY_MIN_VERSION = 20260504172138;
 		const CHAIN_PROXY_MIN_VERSION = 20260506175102;
 		const SKIP_VERIFY_WARNING_BYPASS_MIN_VERSION = 20260601154939;
+		const ALPN_FEATURE_MIN_VERSION = 20260904162413;
+		const ECH_SUPPORTED_FINGERPRINTS = ['chrome', 'firefox'];
 
 		// ========== PROXYIP 列表选择器功能(过滤模式) ==========
 		function escapeHtml(text) {
@@ -18019,6 +18064,12 @@
 		let cachedChangelogRawText = '';
 		let cachedChangelogLoadedAt = 0;
 		let pendingChangelogLoadPromise = null;
+		let alpnFeatureEnabled = false;
+		let loadedALPNValue = '';
+		let pendingALPNValue = '';
+		let lastCommittedFingerprint = 'chrome';
+		let pendingECHConflictFingerprint = '';
+		let pendingECHConflictSource = '';
 		let httpsProxyFeatureEnabled = false;
 		let turnSstpProxyFeatureEnabled = false;
 		let chainProxyFeatureEnabled = false;
@@ -18762,6 +18813,8 @@
 			httpsProxyFeatureEnabled = versionNumber >= HTTPS_PROXY_MIN_VERSION;
 			turnSstpProxyFeatureEnabled = versionNumber >= TURN_SSTP_PROXY_MIN_VERSION;
 			chainProxyFeatureEnabled = versionNumber >= CHAIN_PROXY_MIN_VERSION;
+			alpnFeatureEnabled = versionNumber >= ALPN_FEATURE_MIN_VERSION;
+			updateALPNGroupVisibility();
 			updateChainProxyButtonVisibility();
 
 			const httpsOption = document.getElementById('httpsProxyOption');
@@ -18798,6 +18851,33 @@
 			if (proxyMode.value !== 'auto') {
 				updateProxyMode(false, false);
 			}
+		}
+
+		function updateALPNGroupVisibility() {
+			const group = document.getElementById('alpnGroup');
+			const select = document.getElementById('alpn');
+			if (!group || !select) return;
+
+			const hasALPNField = Object.prototype.hasOwnProperty.call(currentConfig || {}, 'ALPN');
+			const supportedProtocol = !['ss'].includes(document.getElementById('protocol')?.value || currentConfig?.协议类型);
+			const visible = alpnFeatureEnabled && hasALPNField && supportedProtocol;
+			group.style.display = visible ? '' : 'none';
+			if (visible) syncALPNSelectFromConfig();
+		}
+
+		function syncALPNSelectFromConfig() {
+			const select = document.getElementById('alpn');
+			if (!select) return;
+			const value = String(currentConfig?.ALPN || '');
+			if (value && !Array.from(select.options).some(option => option.value === value)) {
+				const option = document.createElement('option');
+				option.value = value;
+				option.textContent = `${value}（当前值）`;
+				select.appendChild(option);
+			}
+			select.value = value;
+			loadedALPNValue = value;
+			pendingALPNValue = '';
 		}
 
 		function getVersionHealthMeta(healthKey) {
@@ -19951,6 +20031,16 @@
 			} else {
 				fingerprintSelect.value = currentConfig['Fingerprint'] || 'chrome';
 			}
+			lastCommittedFingerprint = fingerprintSelect?.value || 'chrome';
+			const alpnGroup = document.getElementById('alpnGroup');
+			if (currentConfig['ALPN'] === undefined) {
+				if (alpnGroup) alpnGroup.style.setProperty('display', 'none', 'important');
+				loadedALPNValue = '';
+				pendingALPNValue = '';
+			} else {
+				syncALPNSelectFromConfig();
+				updateALPNGroupVisibility();
+			}
 
 			// 检查随机路径字段是否存在
 			const randomPathGroup = document.getElementById('randomPathGroup');
@@ -20558,56 +20648,141 @@
 
 			// 协议/TLS 变化会影响 ECH 可用性
 			updateECHOptionState();
+			updateALPNGroupVisibility();
 		}
 
-		// 处理浏览器指纹变化，联动ECH选项
+		function handleALPNChange(event) {
+			const select = event?.target || document.getElementById('alpn');
+			if (!select) return;
+			const nextValue = String(select.value || '');
+			if (!nextValue) {
+				pendingALPNValue = '';
+				loadedALPNValue = '';
+				markModified('config');
+				return;
+			}
+
+			pendingALPNValue = nextValue;
+			select.value = loadedALPNValue;
+			const warningText = document.getElementById('alpnWarningText');
+			if (warningText) warningText.textContent = `当前选择为「${nextValue}」，是否确认固定此 ALPN？`;
+			document.getElementById('alpnWarningModal')?.classList.add('show');
+		}
+
+		function confirmALPNSelection() {
+			const select = document.getElementById('alpn');
+			if (!select || !pendingALPNValue) return closeALPNWarning();
+			select.value = pendingALPNValue;
+			loadedALPNValue = pendingALPNValue;
+			pendingALPNValue = '';
+			markModified('config');
+			closeALPNWarning();
+		}
+
+		function keepAutoALPN() {
+			const select = document.getElementById('alpn');
+			if (select) select.value = '';
+			loadedALPNValue = '';
+			pendingALPNValue = '';
+			markModified('config');
+			closeALPNWarning();
+		}
+
+		function closeALPNWarning(event) {
+			const modal = document.getElementById('alpnWarningModal');
+			if (!modal || (event && event.target !== modal)) return;
+			const select = document.getElementById('alpn');
+			if (select) select.value = loadedALPNValue;
+			pendingALPNValue = '';
+			modal.classList.remove('show');
+		}
+
+		// 处理浏览器指纹变化，ECH 冲突时交给用户选择
 		function handleFingerprintChange() {
+			const fingerprintSelect = document.getElementById('fingerprint');
+			const enableECHCheckbox = document.getElementById('enableECH');
+			const nextFingerprint = fingerprintSelect?.value || 'chrome';
+			if (enableECHCheckbox?.checked && !ECH_SUPPORTED_FINGERPRINTS.includes(nextFingerprint)) {
+				pendingECHConflictFingerprint = nextFingerprint;
+				pendingECHConflictSource = 'fingerprint';
+				if (fingerprintSelect) fingerprintSelect.value = lastCommittedFingerprint || 'chrome';
+				openECHFingerprintConflict();
+				return;
+			}
+			lastCommittedFingerprint = nextFingerprint;
 			updateECHOptionState();
+			markModified('config');
 		}
 
-		// 处理ECH启用状态变化
+		// 处理 ECH 启用状态变化
 		function handleECHEnableChange() {
 			const enableECHCheckbox = document.getElementById('enableECH');
 			const fingerprintSelect = document.getElementById('fingerprint');
-
-			// 支持ECH的指纹类型
-			const supportECH = ['chrome', 'firefox'];
-
-			// 如果用户开启ECH，但当前指纹不支持ECH，自动切换到chrome
-			if (enableECHCheckbox && enableECHCheckbox.checked) {
-				const currentFingerprint = fingerprintSelect?.value;
-				if (currentFingerprint && !supportECH.includes(currentFingerprint)) {
-					fingerprintSelect.value = 'chrome';
-					// 同时标记详细配置模块为已修改
-					markModified('config');
-				}
+			const currentFingerprint = fingerprintSelect?.value || 'chrome';
+			if (enableECHCheckbox?.checked && !ECH_SUPPORTED_FINGERPRINTS.includes(currentFingerprint)) {
+				pendingECHConflictFingerprint = currentFingerprint;
+				pendingECHConflictSource = 'enable';
+				enableECHCheckbox.checked = false;
+				openECHFingerprintConflict();
+				return;
 			}
-
 			markModified('ech');
 		}
 
-		// 更新ECH选项的状态（禁用/启用）
+		function openECHFingerprintConflict() {
+			document.getElementById('echFingerprintConflictModal')?.classList.add('show');
+		}
+
+		function closeECHFingerprintConflict(event) {
+			const modal = document.getElementById('echFingerprintConflictModal');
+			if (!modal || (event && event.target !== modal)) return;
+			if (pendingECHConflictSource === 'fingerprint') {
+				const fingerprintSelect = document.getElementById('fingerprint');
+				if (fingerprintSelect) fingerprintSelect.value = lastCommittedFingerprint || 'chrome';
+			}
+			pendingECHConflictFingerprint = '';
+			pendingECHConflictSource = '';
+			modal.classList.remove('show');
+			updateECHOptionState();
+		}
+
+		function resolveECHFingerprintConflict(choice) {
+			const fingerprintSelect = document.getElementById('fingerprint');
+			const enableECHCheckbox = document.getElementById('enableECH');
+			if (choice === 'disable') {
+				if (fingerprintSelect && pendingECHConflictFingerprint) {
+					fingerprintSelect.value = pendingECHConflictFingerprint;
+					lastCommittedFingerprint = pendingECHConflictFingerprint;
+				}
+				if (enableECHCheckbox) enableECHCheckbox.checked = false;
+				markModified('config');
+				markModified('ech');
+			} else if (ECH_SUPPORTED_FINGERPRINTS.includes(choice)) {
+				if (fingerprintSelect) fingerprintSelect.value = choice;
+				if (enableECHCheckbox) enableECHCheckbox.checked = true;
+				lastCommittedFingerprint = choice;
+				markModified('config');
+				markModified('ech');
+			}
+			pendingECHConflictFingerprint = '';
+			pendingECHConflictSource = '';
+			document.getElementById('echFingerprintConflictModal')?.classList.remove('show');
+			updateECHOptionState();
+		}
+
+		// 更新 ECH 选项的状态。指纹冲突由上面的弹窗处理，只有协议硬限制时才禁用。
 		function updateECHOptionState() {
-			const fingerprint = document.getElementById('fingerprint')?.value;
 			const enableECHCheckbox = document.getElementById('enableECH');
 			const protocol = document.getElementById('protocol')?.value;
 			const ssTLS = document.getElementById('ssTLS')?.value;
-
-			// 支持ECH的指纹类型
-			const supportECH = ['chrome', 'firefox'];
-			const isFingerprintSupported = supportECH.includes(fingerprint);
 			const isSSWithoutTLS = protocol === 'ss' && ssTLS === 'false';
-			const shouldDisableECH = !isFingerprintSupported || isSSWithoutTLS;
 
 			if (enableECHCheckbox) {
-				// 当不满足条件时，自动取消勾选
-				if (shouldDisableECH && enableECHCheckbox.checked) {
+				if (isSSWithoutTLS && enableECHCheckbox.checked) {
 					enableECHCheckbox.checked = false;
 					markModified('ech');
 				}
-
-				// SS + TLS关闭 或 指纹不支持时，ECH启用不可编辑
-				enableECHCheckbox.disabled = shouldDisableECH;
+				enableECHCheckbox.disabled = isSSWithoutTLS;
 			}
 		}
 
@@ -21477,6 +21652,11 @@
 				currentConfig['Fingerprint'] = document.getElementById('fingerprint').value;
 			}
 
+			// 保存 ALPN（如果字段存在）
+			if (currentConfig['ALPN'] !== undefined) {
+				currentConfig['ALPN'] = document.getElementById('alpn')?.value || '';
+			}
+
 			// 保存随机路径（如果字段存在）
 			if (currentConfig['随机路径'] !== undefined) {
 				currentConfig['随机路径'] = document.getElementById('randomPath').checked;
@@ -21622,7 +21802,8 @@
 					return;
 				}
 			}
-			const enabledPool = collectEnabledCustomProxyIPs();
+			// 使用当前配置中的完整启用集合，避免搜索过滤后只读取可见复选框而丢失隐藏项。
+			const enabledPool = [...getEnabledCustomProxyIPSet()];
 			currentConfig.反代 = {
 				...existingReverseProxyConfig,
 				PROXYIP: proxyIP,

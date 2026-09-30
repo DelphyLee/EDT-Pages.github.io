@@ -23,3 +23,5 @@ yarn.lock
 *.swo
 *~
 .idea/
+/admin/config.json
+/admin/log.json

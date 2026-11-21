@@ -8,8 +8,9 @@
 - 运行项目：Cloudflare Pages magictunnel
 - 管理界面：Worker 从本项目的 Pages 地址读取 admin/index.html
 - 配置和日志 API：在生产 Worker 域名下由 Worker 提供，配置保存在 Worker KV
-- ALPN 控件按 Worker /version 与配置字段决定是否显示。当前 Worker Version 2026-09-22 20:01:17 满足现有 ALPN 门槛。
-- 当前面板没有订阅转换 EXPAND 开关；Worker 默认 EXPAND=true，因此 Worker-only 更新不要求发布面板。需要增加开关时，面板必须同时实现读取、保存和重置。
+- 上游基线：已同步至 `EDT-Pages/EDT-Pages.github.io` `upstream/main`（`aaab6db`，2026-11-10），保留并融合了本地 PROXYIP 池、预设域名下拉、获取更多 PROXYIP（含公司归属）及按域名出口规则。
+- ALPN 与 XMUX 控件按 Worker /version 与配置字段决定是否显示。当前配套 Worker Version `2026-11-10 23:26:46`（`20261110232646`）同时满足 ALPN（`>= 20260904162413`）与 XMUX 连接复用（`>= 20261110232646`）门槛。
+- 订阅转换 `EXPAND`（展开规则全文）开关已随上游合入面板，支持读取、保存与重置。
 
 ## 发布约定
 
